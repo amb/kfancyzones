@@ -161,60 +161,6 @@
               </item>
              </widget>
             </item>
-            <item row="1" column="0">
-             <widget class="QLabel" name="label_zoneOverlayHighlightTarget">
-              <property name="text">
-               <string>Highlight zone when</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QComboBox" name="kcfg_zoneOverlayHighlightTarget">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <item>
-               <property name="text">
-                <string>My cursor is above the zone indicator</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>My cursor is anywhere in the zone</string>
-               </property>
-              </item>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="label_zoneOverlayIndicatorDisplay">
-              <property name="text">
-               <string>Indicator Display</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="1">
-             <widget class="QComboBox" name="kcfg_zoneOverlayIndicatorDisplay">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <item>
-               <property name="text">
-                <string>All zones</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Only target zone</string>
-               </property>
-              </item>
-             </widget>
-            </item>
            </layout>
           </item>
          </layout>

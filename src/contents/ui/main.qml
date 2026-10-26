@@ -680,7 +680,7 @@ PlasmaCore.Dialog {
         // refresh client area
         refreshClientArea();
         mainDialog.loadConfig();
-        console.info("KZones FancyZones 0.9.2.2 loaded: native=" + inputState.available
+        console.info("KZones FancyZones 0.9.2.5 loaded: native=" + inputState.available
             + ", mode=" + config.zoneOverlayShowWhen + ", zones=" + config.layouts[0].zones.length);
 
         // match all clients to zones and connect signals
@@ -843,7 +843,7 @@ PlasmaCore.Dialog {
                 const currentZones = repeaterLayout.itemAt(currentLayout)
                 if (config.enableZoneOverlay && (showZoneOverlay || shiftDrag) && !zoneSelector.expanded) {
                     currentZones.repeater.model.forEach((zone, zoneIndex) => {
-                        if (isHovering(currentZones.repeater.itemAt(zoneIndex).children[config.zoneOverlayHighlightTarget])) {
+                        if (isHovering(currentZones.repeater.itemAt(zoneIndex))) {
                             hoveringZone = zoneIndex;
                         }
                     });
@@ -962,26 +962,26 @@ PlasmaCore.Dialog {
                 id: repeaterLayout
                 model: config.layouts
 
-                Components.Zones {
+                Components.UnselectedZones {
                     id: zones
                     config: mainDialog.config
-                    currentLayout: mainDialog.currentLayout
-                    highlightedZone: mainDialog.highlightedZone
-                    highlightedZones: mainDialog.highlightedZones
+                    area: mainDialog.clientArea
+                    preview: mainDialog.selectionGeometry
                     layoutIndex: index
                     visible: index == mainDialog.currentLayout
                 }
             }
 
             Rectangle {
+                id: snapPreview
                 // Preview the actual bounding rectangle, including space between zones.
-                visible: highlightedZones.length > 1 && selectionGeometry !== null
+                visible: highlightedZones.length > 0 && selectionGeometry !== null
                 x: selectionGeometry ? selectionGeometry.x - clientArea.x : 0
                 y: selectionGeometry ? selectionGeometry.y - clientArea.y : 0
                 width: selectionGeometry ? selectionGeometry.width : 0
                 height: selectionGeometry ? selectionGeometry.height : 0
-                color: Qt.rgba(colorHelper.accentColor.r, colorHelper.accentColor.g, colorHelper.accentColor.b, 0.15)
-                border.color: colorHelper.accentColor
+                color: "#2635c56b"
+                border.color: "#69db8f"
                 border.width: 3
                 radius: 8
             }

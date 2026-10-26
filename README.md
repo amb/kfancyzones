@@ -2,7 +2,7 @@
 
 ## Local FancyZones fork
 
-**Status: minimal, unpolished working MVP (0.9.2.2).**
+**Status: working MVP with the 0.9.2.5 overlay revision.**
 
 This branch adds **Ctrl+Shift-drag multi-zone selection** on KWin Wayland 6.6.
 The default layout is **four columns by two rows** (eight equal zones, numbered
@@ -26,6 +26,11 @@ while dragging** in the KZones overlay settings.
 
 The fork appears as **KZones FancyZones** in KWin Scripts. Disable the original
 **KZones** and enable this fork; it has its own settings and install directory.
+
+The overlay draws unfilled gray outlines for the available zones. A single
+translucent green rectangle shows the final window bounds, for either one zone
+or several combined zones. Gray rectangles overlapping that preview are hidden;
+the remaining zones stay gray. There are no mini-grid icons.
 
 Build instructions, installation, and tests: [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md).
 The following sections describe the original upstream script.

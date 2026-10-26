@@ -15,6 +15,19 @@ Ctrl adds visited zones to the selection. Releasing the mouse first accepts
 the bounding rectangle; releasing Shift first immediately clears the selection
 and continues the normal window drag without snapping.
 
+## Current visual revision
+
+Version **0.9.2.5** preserves the MVP gestures. Available zones have unfilled
+gray outlines; one translucent green rectangle previews the final snap bounds.
+Gray outlines overlapping that rectangle are hidden, including intervening
+zones enclosed by a multi-zone bounding rectangle. Mini-grid icons and their
+obsolete overlay settings have been removed.
+
+Remaining issue: slight flicker of the dragged window has been reported during
+Shift-drag. It is not intentional. Interaction between KWin's built-in outline
+and the overlay's repeated `hideOutline()` calls is a candidate cause; the cause
+has not been confirmed or fixed in this revision.
+
 ## Build requirements
 
 On Kubuntu 26.04, install these yourself with administrator privileges:
@@ -40,6 +53,9 @@ make build
 This compiles `native/inputplugin.cpp`, copies the resulting QML module into
 `src/contents/ui/native`, and builds `kzones-fancyzones.kwinscript`. Generated files are
 ignored by Git. The package includes only the production native module.
+The filled-preview revision uses a generated `ui/FilledPreviewOverlay.qml` entry
+point, copied from `main.qml`, so an existing session can load the changed QML
+without reusing the MVP's cached entry point.
 
 To install the fork as a separate script:
 

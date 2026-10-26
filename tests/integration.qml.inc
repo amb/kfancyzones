@@ -35,6 +35,7 @@
                     break;
                 case 2:
                     integrationAssert(shiftDrag, "Shift state did not reach QML");
+                    integrationAssert(snapPreview.visible && snapPreview.width === 480, "single-zone final rectangle is missing");
                     integrationAssert((inputState.modifiers & Qt.ControlModifier) !== 0, "Ctrl state did not reach QML");
                     testInput.pointer(600,100);
                     break;
@@ -42,6 +43,11 @@
                     integrationAssert(highlightedZones.includes(0) && highlightedZones.includes(1), "multi-zone preview did not expand");
                     integrationAssert(selectionGeometry.width === 960, "combined preview width is incorrect: "
                         + JSON.stringify({geometry:selectionGeometry,zones:highlightedZones,area:clientArea,cursor:Workspace.cursorPos}));
+                    integrationAssert(snapPreview.visible && snapPreview.width === 960 && snapPreview.height === 540, "final rectangle does not match the combined snap area");
+                    integrationAssert(snapPreview.color.a > 0 && Qt.colorEqual(snapPreview.border.color,"#69db8f"), "final rectangle is not filled green");
+                    const zoneItems = repeaterLayout.itemAt(currentLayout).repeater;
+                    integrationAssert(!zoneItems.itemAt(0).visible && !zoneItems.itemAt(1).visible, "covered gray outlines remain visible");
+                    integrationAssert(zoneItems.itemAt(2).visible && zoneItems.itemAt(4).visible, "adjacent gray outlines were hidden");
                     testInput.button(false);
                     break;
                 case 4:

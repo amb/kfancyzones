@@ -5,3 +5,4 @@ KZones.kwinscript
 /src/contents/ui/native/
 
 /kzones-fancyzones.kwinscript
+/src/contents/ui/FilledPreviewOverlay.qml

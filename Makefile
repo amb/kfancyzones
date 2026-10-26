@@ -23,6 +23,7 @@ native:
 	@cmake --build $(NATIVE_BUILD_DIR) --parallel
 	@mkdir -p $(SRC_DIR)/contents/ui/native
 	@cp $(NATIVE_BUILD_DIR)/qml/qmldir $(NATIVE_BUILD_DIR)/qml/libkzonesinputplugin.so $(SRC_DIR)/contents/ui/native/
+	@cp $(SRC_DIR)/contents/ui/main.qml $(SRC_DIR)/contents/ui/FilledPreviewOverlay.qml
 
 check:
 	@node --test --test-isolation=none tests/selection.test.cjs tests/drop.test.cjs

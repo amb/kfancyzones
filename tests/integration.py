@@ -64,6 +64,9 @@ def run():
                                        'import "native" as Native\nimport "testnative" as TestNative')
         text = text[:text.rfind("}")] + (ROOT / "tests/integration.qml.inc").read_text() + "\n}\n"
         main.write_text(text)
+        # KWin's package structure can still select ui/main.qml regardless of
+        # X-Plasma-MainScript; instrument the canonical entry point as well.
+        (package / "contents/ui/main.qml").write_text(text)
         (base / "config/kwinrc").write_text("[Plugins]\nkzones-fancyzonesEnabled=true\n"
                                            "[Script-kzones-fancyzones]\nenableZoneSelector=false\n"
                                            "enableDebugLogging=true\n")
