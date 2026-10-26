@@ -1,0 +1,23 @@
+cmake_minimum_required(VERSION 3.24)
+project(KZonesInput VERSION 0.1 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Widgets DBus)
+find_package(KWin 6.6 REQUIRED)
+
+add_library(kzonesinputplugin MODULE inputplugin.cpp)
+target_link_libraries(kzonesinputplugin PRIVATE Qt6::Qml KWin::kwin)
+set_target_properties(kzonesinputplugin PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
+configure_file(qmldir "${CMAKE_BINARY_DIR}/qml/qmldir" COPYONLY)
+
+option(KZONES_BUILD_INTEGRATION_TESTS "Build input driver for an isolated virtual KWin test" OFF)
+if(KZONES_BUILD_INTEGRATION_TESTS)
+    add_library(kzonestestinputplugin MODULE ../tests/native/testinput.cpp)
+    target_link_libraries(kzonestestinputplugin PRIVATE Qt6::Qml KWin::kwin)
+    set_target_properties(kzonestestinputplugin PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/testqml")
+    file(WRITE "${CMAKE_BINARY_DIR}/testqml/qmldir" "module KZones.TestInput\nplugin kzonestestinputplugin\n")
+    add_executable(kzones-test-client ../tests/native/client.cpp)
+    target_link_libraries(kzones-test-client PRIVATE Qt6::Widgets)
+endif()

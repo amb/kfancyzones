@@ -5,6 +5,8 @@ import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.core as PlasmaCore
 
 import "components" as Components
+import "native" as Native
+import "../code/selection.js" as Selection
 
 PlasmaCore.Dialog {
 
@@ -26,6 +28,14 @@ PlasmaCore.Dialog {
     property int currentLayout: 0
     property var screenLayouts: ({})
     property int highlightedZone: -1
+    property var zoneSelection: ({context: "", zones: [], hovered: -1, extending: false})
+    property var highlightedZones: Selection.selected(zoneSelection)
+    property var selectionGeometry: Selection.combinedGeometry(config.layouts?.[currentLayout], clientArea, highlightedZones)
+    property bool dragCancelled: false
+    property var dragOriginalGeometry: null
+    property var dragOriginalTile: null
+    property bool shiftDrag: config.enableZoneOverlay
+        && inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0
     property var activeScreen: null
     property var config: ({})
     property bool showZoneOverlay: config.zoneOverlayShowWhen == 0
@@ -45,7 +55,7 @@ PlasmaCore.Dialog {
 
     function loadConfig() {
 
-        const defaultLayouts = '[{"name":"Priority Grid","padding":0,"zones":[{"x":0,"y":0,"height":100,"width":25},{"x":25,"y":0,"height":100,"width":50},{"x":75,"y":0,"height":100,"width":25}]},{"name":"Quadrant Grid","zones":[{"x":0,"y":0,"height":50,"width":50},{"x":0,"y":50,"height":50,"width":50},{"x":50,"y":50,"height":50,"width":50},{"x":50,"y":0,"height":50,"width":50}]}]'
+        const defaultLayouts = '[{"name":"4 x 2 Grid","padding":0,"zones":[{"x":0,"y":0,"width":25,"height":50},{"x":25,"y":0,"width":25,"height":50},{"x":50,"y":0,"width":25,"height":50},{"x":75,"y":0,"width":25,"height":50},{"x":0,"y":50,"width":25,"height":50},{"x":25,"y":50,"width":25,"height":50},{"x":50,"y":50,"width":25,"height":50},{"x":75,"y":50,"width":25,"height":50}]}]';
 
         let layouts;
 
@@ -64,8 +74,10 @@ PlasmaCore.Dialog {
             zoneSelectorTriggerDistance: KWin.readConfig("zoneSelectorTriggerDistance", 1),
             // enable zone overlay
             enableZoneOverlay: KWin.readConfig("enableZoneOverlay", true),
+            // Ctrl+Shift-drag combines the zones crossed during a window move.
+            enableMultiZoneSelection: KWin.readConfig("enableMultiZoneSelection", true),
             // show zone overlay when
-            zoneOverlayShowWhen: KWin.readConfig("zoneOverlayShowWhen", 0),
+            zoneOverlayShowWhen: KWin.readConfig("zoneOverlayShowWhen", 2),
             // highlight target zone
             zoneOverlayHighlightTarget: KWin.readConfig("zoneOverlayHighlightTarget", 0),
             // zone overlay indicator display
@@ -109,9 +121,11 @@ PlasmaCore.Dialog {
     function show() {
         // show OSD
         mainDialog.shown = true;
-        mainDialog.visible = true;
+        mainDialog.visible = zoneDragEnabled();
         mainDialog.setWidth(Workspace.virtualScreenSize.width);
         mainDialog.setHeight(Workspace.virtualScreenSize.height);
+        mainDialog.x = Workspace.virtualScreenGeometry.x;
+        mainDialog.y = Workspace.virtualScreenGeometry.y;
         refreshClientArea();
     }
 
@@ -122,11 +136,12 @@ PlasmaCore.Dialog {
         zoneSelector.expanded = false;
         zoneSelector.near = false;
         highlightedZone = -1;
+        resetZoneSelection();
         showZoneOverlay = config.zoneOverlayShowWhen == 0;
     }
 
     function refreshClientArea() {
-        activeScreen = Workspace.activeScreen;
+        activeScreen = moving ? Workspace.screenAt(Workspace.cursorPos) : Workspace.activeScreen;
         clientArea = Workspace.clientArea(KWin.FullScreenArea, activeScreen, Workspace.currentDesktop);
         displaySize = Workspace.virtualScreenSize;
         currentLayout = getCurrentLayout();
@@ -144,6 +159,44 @@ PlasmaCore.Dialog {
             width: item.width * item.scale,
             height: item.height * item.scale
         });
+    }
+
+    function resetZoneSelection() {
+        zoneSelection = {context: "", zones: [], hovered: -1, extending: false};
+    }
+
+    function zoneDragEnabled() {
+        return config.zoneOverlayShowWhen !== 2
+            || (inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0);
+    }
+
+    function updateZoneSelection(zone) {
+        const context = activeScreen.name + ":" + currentLayout;
+        const extend = config.enableMultiZoneSelection && shiftDrag
+            && (inputState.modifiers & Qt.ControlModifier) !== 0;
+        zoneSelection = Selection.update(zoneSelection, zone, context, extend);
+        highlightedZone = zone;
+    }
+
+    function updateShiftSelection() {
+        if (!moving || dragCancelled) return;
+        if (!zoneDragEnabled()) {
+            // Key release wins over any queued polling or mouse-release handler.
+            resetZoneSelection();
+            highlightedZone = -1;
+            mainDialog.visible = false;
+            Workspace.hideOutline();
+            return;
+        }
+        mainDialog.visible = shown;
+        refreshClientArea();
+        // Sample directly on modifier changes and drop, not just at the polling interval.
+        if (shiftDrag && !zoneSelector.expanded) {
+            updateZoneSelection(Selection.zoneAt(config.layouts[currentLayout], clientArea, Workspace.cursorPos));
+            Workspace.hideOutline();
+        } else {
+            updateZoneSelection(highlightedZone);
+        }
     }
 
     function checkFilter(client) {
@@ -171,20 +224,15 @@ PlasmaCore.Dialog {
 
         refreshClientArea();
 
+        const layout = config.layouts[currentLayout];
+        if (client.layout === currentLayout && client.zones?.length > 1
+            && Selection.matches(client.frameGeometry, Selection.combinedGeometry(layout, clientArea, client.zones))) return;
         client.zone = -1;
-        // get all zones in the current layout
-        const zones = config.layouts[currentLayout].zones;
-        // loop through zones and compare with the geometries of the client
-        for (let i = 0; i < zones.length; i++) {
-            const zone = zones[i];
-            const zonePadding = config.layouts[currentLayout].padding || 0;
-            const zoneX = ((zone.x / 100) * (clientArea.width - zonePadding)) + zonePadding;
-            const zoneY = ((zone.y / 100) * (clientArea.height - zonePadding)) + zonePadding;
-            const zoneWidth = ((zone.width / 100) * (clientArea.width - zonePadding)) - zonePadding;
-            const zoneHeight = ((zone.height / 100) * (clientArea.height - zonePadding)) - zonePadding;
-            if (client.frameGeometry.x == zoneX && client.frameGeometry.y == zoneY && client.frameGeometry.width == zoneWidth && client.frameGeometry.height == zoneHeight) {
-                // zone found, set it and exit the loop
+        client.zones = [];
+        for (let i = 0; i < layout.zones.length; i++) {
+            if (Selection.matches(client.frameGeometry, Selection.zoneGeometry(layout, clientArea, i))) {
                 client.zone = i;
+                client.zones = [i];
                 client.layout = currentLayout;
                 break;
             }
@@ -219,23 +267,55 @@ PlasmaCore.Dialog {
     }
 
     function moveClientToZone(client, zone) {
-        // block abnormal windows from being moved (like plasmashell, docks, etc...)
+        if (zone === -1) {
+            if (checkFilter(client)) saveClientProperties(client, -1);
+            return;
+        }
+        moveClientToZones(client, [zone]);
+    }
+
+    function moveClientToZones(client, zones) {
         if (!checkFilter(client)) return;
+        refreshClientArea();
+        const geometry = Selection.combinedGeometry(config.layouts[currentLayout], clientArea, zones);
+        if (!geometry) return;
+        saveClientProperties(client, zones[0]);
+        client.zones = zones.slice();
+        // KWin applies its own Shift-drag tile before emitting move-finished.
+        // Detach it before setting the independent combined window geometry.
+        if (client.tile) client.tile.unmanage(client);
+        client.setMaximize(false, false);
+        client.frameGeometry = Qt.rect(geometry.x, geometry.y, geometry.width, geometry.height);
+    }
 
-        log("Moving client " + client.resourceClass.toString() + " to zone " + zone);
+    function finishZoneDrop(client) {
+        if (dragCancelled) return;
+        updateShiftSelection();
+        const zones = highlightedZones.slice();
+        if (zones.length) {
+            // Native tiling may already have resized the window at this point.
+            // Save the geometry captured before the drag instead of that tile.
+            const wasUnsnapped = client.zone == null || client.zone === -1;
+            moveClientToZones(client, zones);
+            if (config.rememberWindowGeometries && dragOriginalGeometry && wasUnsnapped) {
+                client.oldGeometry = dragOriginalGeometry;
+            }
+        } else {
+            saveClientProperties(client, -1);
+        }
+    }
 
-        refreshClientArea()
-        saveClientProperties(client, zone);
-
-        // move client to zone
-        if (zone != -1) {
-            const currentZones = repeaterLayout.itemAt(currentLayout)
-            const zoneItem = currentZones.repeater.itemAt(zone);
-            const itemGlobal = zoneItem.mapToGlobal(Qt.point(0, 0));
-            const newGeometry = Qt.rect(Math.round(itemGlobal.x), Math.round(itemGlobal.y), Math.round(zoneItem.width), Math.round(zoneItem.height));
-            log("Moving client " + client.resourceClass.toString() + " to zone " + zone + " with geometry " + JSON.stringify(newGeometry));
-            client.setMaximize(false, false);
-            client.frameGeometry = newGeometry;
+    function cancelZoneDrop(client) {
+        // KWin 6.6 applies Shift tiling even after Escape restores the drag.
+        // Put back the tiling state and geometry from before this move.
+        if (dragOriginalTile) {
+            dragOriginalTile.manage(client);
+        } else {
+            if (client.tile) client.tile.unmanage(client);
+            if (dragOriginalGeometry) {
+                const geometry = dragOriginalGeometry;
+                client.frameGeometry = Qt.rect(geometry.x, geometry.y, geometry.width, geometry.height);
+            }
         }
     }
 
@@ -251,7 +331,7 @@ PlasmaCore.Dialog {
                 "height": client.frameGeometry.height
             };
             if (zone != -1) {
-                if (client.zone == -1) {
+                if (client.zone == null || client.zone === -1) {
                     client.oldGeometry = geometry;
                 }
             }
@@ -259,6 +339,7 @@ PlasmaCore.Dialog {
 
         // save zone
         client.zone = zone;
+        client.zones = zone === -1 ? [] : [zone];
         client.layout = currentLayout;
         client.desktop = Workspace.currentDesktop;
         client.activity = Workspace.currentActivity;
@@ -481,132 +562,41 @@ PlasmaCore.Dialog {
     }
 
     function connectSignals(client) {
-
         if (!checkFilter(client)) return;
-
-        log("Connecting signals for client " + client.resourceClass.toString());
-
-        client.onInteractiveMoveResizeStarted.connect(onInteractiveMoveResizeStarted);
-        client.onInteractiveMoveResizeStepped.connect(onInteractiveMoveResizeStepped);
-        client.onInteractiveMoveResizeFinished.connect(onInteractiveMoveResizeFinished);
-        client.onFullScreenChanged.connect(onFullScreenChanged);
-
-        function onInteractiveMoveResizeStarted() {
-            log("Interactive move/resize started for client " + client.resourceClass.toString());
-            if (client.resizeable && checkFilter(client)) {
-                if (client.move && checkFilter(client)) {
-                    cachedClientArea = clientArea;
-
-                    if (config.fadeWindowsWhileMoving) {
-                        for (let i = 0; i < Workspace.stackingOrder.length; i++) {
-                            const client = Workspace.stackingOrder[i];
-                            client.previousOpacity = client.opacity;
-                            if (client.move ||!client.normalWindow) continue;
-                            client.opacity = 0.5;
-                        }
-                    }
-
-                    if (config.rememberWindowGeometries && client.zone != -1) {
-                        if (client.oldGeometry) {
-                            const geometry = client.oldGeometry;
-                            const zone = config.layouts[client.layout].zones[client.zone];
-                            const zoneCenterX = (zone.x + zone.width / 2) / 100 * cachedClientArea.width + cachedClientArea.x;
-                            const zoneX = ((zone.x / 100) * cachedClientArea.width + cachedClientArea.x);
-                            const newGeometry = Qt.rect(Math.round(Workspace.cursorPos.x - geometry.width / 2), Math.round(client.frameGeometry.y), Math.round(geometry.width), Math.round(geometry.height));
-                            client.frameGeometry = newGeometry;
-                        }
-                    }
-
-                    moving = true;
-                    moved = false;
-                    resizing = false;
-                    log("Move start " + client.resourceClass.toString());
-                    mainDialog.show();
-                }
-                if (client.resize) {
-                    moving = false;
-                    moved = false;
-                    resizing = true;
-                }
-            }
-        }
-
-        function onInteractiveMoveResizeStepped() {
-            if (client.resizeable) {
-                if (moving && checkFilter(client)) {
-                    moved = true;
-                }
-            }
-        }
-
-        function onInteractiveMoveResizeFinished() {
-            log("Interactive move/resize finished for client " + client.resourceClass.toString());
-
-            if (config.fadeWindowsWhileMoving) {
-                for (let i = 0; i < Workspace.stackingOrder.length; i++) {
-                    const client = Workspace.stackingOrder[i];
-                    client.opacity = client.previousOpacity || 1;
-                }
-            }
-
-            if (moving) {
-                log("Move end " + client.resourceClass.toString());
-                if (moved) {
-                    if (shown) {
-                        moveClientToZone(client, highlightedZone);
-                    } else {
-                        saveClientProperties(client, -1);
-                    }
-                }
-                hide();
-            }  else if (resizing) {
-                matchZone(client);
-                log("Resizing end: Matched client " + client.resourceClass.toString() + " to layout.zone " + client.layout + " " + client.zone );
-                saveClientProperties(client, client.zone);
-            }
-            moving = false;
-            moved = false;
-            resizing = false;
-        }
-
-        // fix from https://github.com/gerritdevriese/kzones/pull/25
-        function onFullScreenChanged() {
-            log("Client fullscreen: " + client.resourceClass.toString() + " (fullscreen " + client.fullScreen + ")");
-            if(client.fullScreen == true) {
-                log("onFullscreenChanged: Client zone: " + client.zone + " layout: " + client.layout);
-                if (client.zone != -1 && client.layout != -1) {
-                    //check if fullscreen is enabled for layout or for zone
-                    const layout = config.layouts[client.layout];
-                    const zone = layout.zones[client.zone];
-                    log("Layout.fullscreen: " + layout.fullscreen + " Zone.fullscreen: " + zone.fullscreen);
-                    if(layout.fullscreen == true || zone.fullscreen == true) {
-                        const currentZones = repeaterLayout.itemAt(client.layout)
-                        const zoneItem = currentZones.repeater.itemAt(client.zone);
-                        const itemGlobal = zoneItem.mapToGlobal(Qt.point(0, 0));
-                        const newGeometry = Qt.rect(Math.round(itemGlobal.x), Math.round(itemGlobal.y), Math.round(zoneItem.width), Math.round(zoneItem.height));
-                        log("Fullscreen client " + client.resourceClass.toString() + " to zone " + client.zone + " with geometry " + JSON.stringify(newGeometry));
-                        client.setMaximize(false, false);
-                        client.frameGeometry = newGeometry;
-                    }
-                }
-            }
-            mainDialog.hide();
-        }
-
+        windowConnections.createObject(mainItem, {target: client});
     }
 
     Components.ColorHelper {
         id: colorHelper
     }
 
+    property Native.InputState modifierState: Native.InputState {
+        id: inputState
+        onModifiersChanged: {
+            // Clear selection synchronously on Shift-up. The queued refresh runs
+            // after KWin's own Shift handler so its outline does not remain visible.
+            mainDialog.updateShiftSelection();
+            Qt.callLater(mainDialog.updateShiftSelection);
+        }
+        onCancelRequested: {
+            if (moving) {
+                dragCancelled = true;
+                resetZoneSelection();
+                highlightedZone = -1;
+            }
+        }
+    }
+
     Components.Shortcuts {
         onCycleLayouts: {
+            resetZoneSelection();
             setCurrentLayout((currentLayout + 1) % config.layouts.length);
             highlightedZone = -1;
             osdDbus.exec(config.trackLayoutPerScreen ? `${config.layouts[currentLayout].name} (${Workspace.activeScreen.name})` : config.layouts[currentLayout].name);
         }
 
         onCycleLayoutsReversed: {
+            resetZoneSelection();
             setCurrentLayout((currentLayout - 1 + config.layouts.length) % config.layouts.length);
             highlightedZone = -1;
             osdDbus.exec(config.trackLayoutPerScreen ? `${config.layouts[currentLayout].name} (${Workspace.activeScreen.name})` : config.layouts[currentLayout].name);
@@ -651,6 +641,7 @@ PlasmaCore.Dialog {
         }
 
         onActivateLayout: {
+            resetZoneSelection();
             if (layout <= config.layouts.length - 1) {
                 setCurrentLayout(layout);
                 highlightedZone = -1;
@@ -689,6 +680,8 @@ PlasmaCore.Dialog {
         // refresh client area
         refreshClientArea();
         mainDialog.loadConfig();
+        console.info("KZones FancyZones 0.9.2.2 loaded: native=" + inputState.available
+            + ", mode=" + config.zoneOverlayShowWhen + ", zones=" + config.layouts[0].zones.length);
 
         // match all clients to zones and connect signals
         for (let i = 0; i < Workspace.stackingOrder.length; i++) {
@@ -703,6 +696,130 @@ PlasmaCore.Dialog {
         width: mainDialog.width
         height: mainDialog.height
 
+        Component {
+            id: windowConnections
+            Connections {
+                // Owned by the overlay: destroying/reloading the script removes
+                // every client callback instead of leaving closures pointing at it.
+                target: null
+                property var client: target
+                function onInteractiveMoveResizeStarted() {
+                    log("Interactive move/resize started for client " + client.resourceClass.toString());
+                    if (client.resizeable && checkFilter(client)) {
+                        if (client.move && checkFilter(client)) {
+                            dragCancelled = false;
+                            resetZoneSelection();
+                            dragOriginalGeometry = {
+                                x: client.frameGeometry.x, y: client.frameGeometry.y,
+                                width: client.frameGeometry.width, height: client.frameGeometry.height
+                            };
+                            dragOriginalTile = client.tile;
+                            cachedClientArea = clientArea;
+
+                            if (config.fadeWindowsWhileMoving) {
+                                for (let i = 0; i < Workspace.stackingOrder.length; i++) {
+                                    const client = Workspace.stackingOrder[i];
+                                    client.previousOpacity = client.opacity;
+                                    if (client.move ||!client.normalWindow) continue;
+                                    client.opacity = 0.5;
+                                }
+                            }
+
+                            if (config.rememberWindowGeometries && client.zone != -1) {
+                                if (client.oldGeometry) {
+                                    const geometry = client.oldGeometry;
+                                    const zone = config.layouts[client.layout].zones[client.zone];
+                                    const zoneCenterX = (zone.x + zone.width / 2) / 100 * cachedClientArea.width + cachedClientArea.x;
+                                    const zoneX = ((zone.x / 100) * cachedClientArea.width + cachedClientArea.x);
+                                    const newGeometry = Qt.rect(Math.round(Workspace.cursorPos.x - geometry.width / 2), Math.round(client.frameGeometry.y), Math.round(geometry.width), Math.round(geometry.height));
+                                    client.frameGeometry = newGeometry;
+                                }
+                            }
+
+                            moving = true;
+                            moved = false;
+                            resizing = false;
+                            log("Move start " + client.resourceClass.toString());
+                            mainDialog.show();
+                            Qt.callLater(updateShiftSelection);
+                        }
+                        if (client.resize) {
+                            moving = false;
+                            moved = false;
+                            resizing = true;
+                        }
+                    }
+                }
+
+                function onInteractiveMoveResizeStepped() {
+                    if (client.resizeable) {
+                        if (moving && checkFilter(client)) {
+                            moved = true;
+                            Qt.callLater(updateShiftSelection);
+                        }
+                    }
+                }
+
+                function onInteractiveMoveResizeFinished() {
+                    log("Interactive move/resize finished for client " + client.resourceClass.toString());
+
+                    if (config.fadeWindowsWhileMoving) {
+                        for (let i = 0; i < Workspace.stackingOrder.length; i++) {
+                            const client = Workspace.stackingOrder[i];
+                            client.opacity = client.previousOpacity || 1;
+                        }
+                    }
+
+                    if (moving) {
+                        log("Move end " + client.resourceClass.toString());
+                        if (dragCancelled) cancelZoneDrop(client);
+                        if (moved) {
+                            if (shown && !dragCancelled) {
+                                finishZoneDrop(client);
+                            } else {
+                                if (!dragCancelled) saveClientProperties(client, -1);
+                            }
+                        }
+                        hide();
+                    }  else if (resizing) {
+                        matchZone(client);
+                        log("Resizing end: Matched client " + client.resourceClass.toString() + " to layout.zone " + client.layout + " " + client.zone );
+                        saveClientProperties(client, client.zone);
+                    }
+                    moving = false;
+                    moved = false;
+                    resizing = false;
+                    dragOriginalGeometry = null;
+                    dragOriginalTile = null;
+                }
+
+                // fix from https://github.com/gerritdevriese/kzones/pull/25
+                function onFullScreenChanged() {
+                    log("Client fullscreen: " + client.resourceClass.toString() + " (fullscreen " + client.fullScreen + ")");
+                    if(client.fullScreen == true) {
+                        log("onFullscreenChanged: Client zone: " + client.zone + " layout: " + client.layout);
+                        if (client.zone != -1 && client.layout != -1) {
+                            //check if fullscreen is enabled for layout or for zone
+                            const layout = config.layouts[client.layout];
+                            const zone = layout.zones[client.zone];
+                            log("Layout.fullscreen: " + layout.fullscreen + " Zone.fullscreen: " + zone.fullscreen);
+                            if(layout.fullscreen == true || zone.fullscreen == true) {
+                                const currentZones = repeaterLayout.itemAt(client.layout)
+                                const zoneItem = currentZones.repeater.itemAt(client.zone);
+                                const itemGlobal = zoneItem.mapToGlobal(Qt.point(0, 0));
+                                const newGeometry = Qt.rect(Math.round(itemGlobal.x), Math.round(itemGlobal.y), Math.round(zoneItem.width), Math.round(zoneItem.height));
+                                log("Fullscreen client " + client.resourceClass.toString() + " to zone " + client.zone + " with geometry " + JSON.stringify(newGeometry));
+                                client.setMaximize(false, false);
+                                client.frameGeometry = newGeometry;
+                            }
+                        }
+                    }
+                    mainDialog.hide();
+                }
+
+            }
+        }
+
         // main polling timer
         Timer {
             id: timer
@@ -713,18 +830,28 @@ PlasmaCore.Dialog {
             repeat: true
 
             onTriggered: {
+                if (dragCancelled) return;
+                if (!zoneDragEnabled()) {
+                    updateShiftSelection();
+                    return;
+                }
                 refreshClientArea();
 
                 let hoveringZone = -1;
 
                 // zone overlay
                 const currentZones = repeaterLayout.itemAt(currentLayout)
-                if (config.enableZoneOverlay && showZoneOverlay && !zoneSelector.expanded) {
+                if (config.enableZoneOverlay && (showZoneOverlay || shiftDrag) && !zoneSelector.expanded) {
                     currentZones.repeater.model.forEach((zone, zoneIndex) => {
                         if (isHovering(currentZones.repeater.itemAt(zoneIndex).children[config.zoneOverlayHighlightTarget])) {
                             hoveringZone = zoneIndex;
                         }
                     });
+                }
+
+                // Modifier dragging uses the whole zone as its drop target.
+                if (shiftDrag && !zoneSelector.expanded) {
+                    hoveringZone = Selection.zoneAt(config.layouts[currentLayout], clientArea, Workspace.cursorPos);
                 }
 
                 // zone selector
@@ -779,10 +906,8 @@ PlasmaCore.Dialog {
                 }
 
                 // if hovering zone changed from the last frame
-                if (hoveringZone != highlightedZone) {
-                    log("Highlighting zone " + hoveringZone + " in layout " + currentLayout);
-                    highlightedZone = hoveringZone;
-                }
+                updateZoneSelection(hoveringZone);
+                if (shiftDrag) Workspace.hideOutline();
 
             }
         }
@@ -802,8 +927,8 @@ PlasmaCore.Dialog {
         }
 
         Item {
-            x: clientArea.x || 0
-            y: clientArea.y || 0
+            x: (clientArea.x || 0) - Workspace.virtualScreenGeometry.x
+            y: (clientArea.y || 0) - Workspace.virtualScreenGeometry.y
             width: clientArea.width || 0
             height: clientArea.height || 0
             clip: true
@@ -842,9 +967,23 @@ PlasmaCore.Dialog {
                     config: mainDialog.config
                     currentLayout: mainDialog.currentLayout
                     highlightedZone: mainDialog.highlightedZone
+                    highlightedZones: mainDialog.highlightedZones
                     layoutIndex: index
                     visible: index == mainDialog.currentLayout
                 }
+            }
+
+            Rectangle {
+                // Preview the actual bounding rectangle, including space between zones.
+                visible: highlightedZones.length > 1 && selectionGeometry !== null
+                x: selectionGeometry ? selectionGeometry.x - clientArea.x : 0
+                y: selectionGeometry ? selectionGeometry.y - clientArea.y : 0
+                width: selectionGeometry ? selectionGeometry.width : 0
+                height: selectionGeometry ? selectionGeometry.height : 0
+                color: Qt.rgba(colorHelper.accentColor.r, colorHelper.accentColor.g, colorHelper.accentColor.b, 0.15)
+                border.color: colorHelper.accentColor
+                border.width: 3
+                radius: 8
             }
 
             Components.Selector {

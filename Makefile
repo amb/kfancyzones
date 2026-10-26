@@ -1,6 +1,7 @@
-SCRIPT_NAME := kzones
+SCRIPT_NAME := kzones-fancyzones
 PKGFILE := $(SCRIPT_NAME).kwinscript
 SRC_DIR := src
+NATIVE_BUILD_DIR := build/native
 SESSION_WIDTH := 1920
 SESSION_HEIGHT := 1080
 SESSION_OUTPUT_COUNT := 1
@@ -9,7 +10,7 @@ SESSION_APPLICATIONS := # dolphin konsole kate
 
 .NOTPARALLEL: all
 
-.PHONY: all test build install uninstall clean enable disable start-session
+.PHONY: all test build native check install uninstall clean enable disable start-session
 
 all: install clean
 
@@ -17,7 +18,16 @@ test: all start-session
 
 build: $(PKGFILE)
 
-$(PKGFILE): $(shell find $(SRC_DIR) -type f)
+native:
+	@cmake -S native -B $(NATIVE_BUILD_DIR)
+	@cmake --build $(NATIVE_BUILD_DIR) --parallel
+	@mkdir -p $(SRC_DIR)/contents/ui/native
+	@cp $(NATIVE_BUILD_DIR)/qml/qmldir $(NATIVE_BUILD_DIR)/qml/libkzonesinputplugin.so $(SRC_DIR)/contents/ui/native/
+
+check:
+	@node --test --test-isolation=none tests/selection.test.cjs tests/drop.test.cjs
+
+$(PKGFILE): native $(shell find $(SRC_DIR) -type f)
 	@echo "Packaging $(SRC_DIR) into $(PKGFILE)..."
 	@zip -rq $(PKGFILE) $(SRC_DIR)
 

@@ -1,5 +1,35 @@
 # KZones
 
+## Local FancyZones fork
+
+**Status: minimal, unpolished working MVP (0.9.2.2).**
+
+This branch adds **Ctrl+Shift-drag multi-zone selection** on KWin Wayland 6.6.
+The default layout is **four columns by two rows** (eight equal zones, numbered
+left to right across the top row, then the bottom row). Existing saved custom
+layouts take precedence over this default.
+
+- Hold **Shift** while dragging to select a KZones zone.
+- Add **Ctrl**, keep both keys held, and drag across additional zones. The
+  preview shows the bounding rectangle of all selected zones.
+- Release the mouse while holding the keys to place the window across that
+  rectangle. The window is detached from native KWin tiles, so its edges resize
+  independently.
+- Release **Ctrl** before dropping to return to the current single zone.
+- Release **Shift before the mouse button** to hide the zones, clear the
+  selection, and continue dragging freely. Dropping then does not snap.
+
+The selection resets when switching outputs or layouts. A rectangular window
+also covers any space between selected zones, including intervening cells when
+selecting diagonally. Disable the feature with **Combine zones with Ctrl+Shift
+while dragging** in the KZones overlay settings.
+
+The fork appears as **KZones FancyZones** in KWin Scripts. Disable the original
+**KZones** and enable this fork; it has its own settings and install directory.
+
+Build instructions, installation, and tests: [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md).
+The following sections describe the original upstream script.
+
 <img align="right" width="125" height="75" src="./media/icon.png">
 
 KDE KWin Script for snapping windows into zones. Handy when using a (super) ultrawide monitor, an alternative to PowerToys FancyZones and Windows 11 snap layouts.

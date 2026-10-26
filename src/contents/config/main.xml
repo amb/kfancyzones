@@ -19,8 +19,12 @@
             <default>true</default>
         </entry>
 
+        <entry name="enableMultiZoneSelection" type="Bool">
+            <default>true</default>
+        </entry>
+
         <entry name="zoneOverlayShowWhen" type="Int">
-            <default>0</default>
+            <default>2</default>
         </entry>
 
         <entry name="zoneOverlayHighlightTarget" type="Int">
@@ -63,57 +67,58 @@
 
         <entry name="layoutsJson" type="String">
             <default>
-                [
+[
     {
-        &quot;name&quot;: &quot;Priority Grid&quot;,
+        &quot;name&quot;: &quot;4 x 2 Grid&quot;,
         &quot;padding&quot;: 0,
         &quot;zones&quot;: [
             {
                 &quot;x&quot;: 0,
                 &quot;y&quot;: 0,
-                &quot;height&quot;: 100,
-                &quot;width&quot;: 25
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
             },
             {
                 &quot;x&quot;: 25,
                 &quot;y&quot;: 0,
-                &quot;height&quot;: 100,
-                &quot;width&quot;: 50
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
+            },
+            {
+                &quot;x&quot;: 50,
+                &quot;y&quot;: 0,
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
             },
             {
                 &quot;x&quot;: 75,
                 &quot;y&quot;: 0,
-                &quot;height&quot;: 100,
-                &quot;width&quot;: 25
-            }
-        ]
-    },
-    {
-        &quot;name&quot;: &quot;Quadrant Grid&quot;,
-        &quot;zones&quot;: [
-            {
-                &quot;x&quot;: 0,
-                &quot;y&quot;: 0,
-                &quot;height&quot;: 50,
-                &quot;width&quot;: 50
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
             },
             {
                 &quot;x&quot;: 0,
                 &quot;y&quot;: 50,
-                &quot;height&quot;: 50,
-                &quot;width&quot;: 50
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
+            },
+            {
+                &quot;x&quot;: 25,
+                &quot;y&quot;: 50,
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
             },
             {
                 &quot;x&quot;: 50,
                 &quot;y&quot;: 50,
-                &quot;height&quot;: 50,
-                &quot;width&quot;: 50
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
             },
             {
-                &quot;x&quot;: 50,
-                &quot;y&quot;: 0,
-                &quot;height&quot;: 50,
-                &quot;width&quot;: 50
+                &quot;x&quot;: 75,
+                &quot;y&quot;: 50,
+                &quot;width&quot;: 25,
+                &quot;height&quot;: 50
             }
         ]
     }

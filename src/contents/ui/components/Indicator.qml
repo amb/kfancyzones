@@ -5,6 +5,7 @@ import "../components" as Components
 Rectangle {
     id: indicator
     property int activeZone: 0
+    property var activeZones: [activeZone]
     property bool hovering: false
     property var zones: []
     width: parent.width
@@ -28,7 +29,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: padding
                 color: {
-                    if (activeZone == index) {
+                    if (activeZones.includes(index)) {
                         return modelData.color ? colorHelper.tintWithAlpha(colorHelper.buttonColor, modelData.color, 0.6) : colorHelper.accentColor
                     } else {
                         return modelData.color ? colorHelper.tintWithAlpha(colorHelper.buttonColor, modelData.color, 0.2) : colorHelper.buttonColor

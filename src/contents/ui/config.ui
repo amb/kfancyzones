@@ -115,6 +115,19 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="kcfg_enableMultiZoneSelection">
+            <property name="text">
+             <string>Combine zones with Ctrl+Shift while dragging</string>
+            </property>
+            <property name="toolTip">
+             <string>Hold Shift to show zones. Add Ctrl and drag across zones to fill their bounding rectangle. Release the mouse first to accept, or release Shift first to cancel zone selection.</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
            <layout class="QFormLayout" name="formLayout_zoneOverlay">
             <item row="0" column="0">
              <widget class="QLabel" name="label_zoneOverlayShowWhen">
@@ -139,6 +152,11 @@
               <item>
                <property name="text">
                 <string>I press the toggle overlay shortcut</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>I hold Shift while dragging</string>
                </property>
               </item>
              </widget>
