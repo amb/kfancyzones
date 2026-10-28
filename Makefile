@@ -1,4 +1,4 @@
-SCRIPT_NAME := kzones-fancyzones
+SCRIPT_NAME := kfancyzones
 PKGFILE := $(SCRIPT_NAME).kwinscript
 SRC_DIR := src
 NATIVE_BUILD_DIR := build/native
@@ -12,25 +12,27 @@ SESSION_APPLICATIONS := # dolphin konsole kate
 
 .PHONY: all test build native check install uninstall clean enable disable start-session
 
-all: install clean
+all: build
 
-test: all start-session
+test: check
 
 build: $(PKGFILE)
 
 native:
 	@cmake -S native -B $(NATIVE_BUILD_DIR)
 	@cmake --build $(NATIVE_BUILD_DIR) --parallel
-	@mkdir -p $(SRC_DIR)/contents/ui/native
-	@cp $(NATIVE_BUILD_DIR)/qml/qmldir $(NATIVE_BUILD_DIR)/qml/libkzonesinputplugin.so $(SRC_DIR)/contents/ui/native/
-	@cp $(SRC_DIR)/contents/ui/main.qml $(SRC_DIR)/contents/ui/FilledPreviewOverlay.qml
+	@mkdir -p $(SRC_DIR)/contents/ui/moveinput
+	@cp $(NATIVE_BUILD_DIR)/qml/qmldir $(NATIVE_BUILD_DIR)/qml/libkfancyzonesinputplugin.so $(SRC_DIR)/contents/ui/moveinput/
+	@cp $(SRC_DIR)/contents/ui/main.qml $(SRC_DIR)/contents/ui/KFancyZones.qml
+	@cp LICENSE.md $(SRC_DIR)/LICENSE.md
 
 check:
 	@node --test --test-isolation=none tests/selection.test.cjs tests/drop.test.cjs
 
 $(PKGFILE): native $(shell find $(SRC_DIR) -type f)
 	@echo "Packaging $(SRC_DIR) into $(PKGFILE)..."
-	@zip -rq $(PKGFILE) $(SRC_DIR)
+	@rm -f $(PKGFILE)
+	@zip -rq $(PKGFILE) $(SRC_DIR) -x '*/ui/native/*' '*/libkzones*.so' '*/ui/FilledPreviewOverlay.qml' '*/ui/RaisedWindowOverlay.qml' '*/ui/NativePreviewFreeOverlay.qml'
 
 install: build
 	@echo "Installing $(PKGFILE)..."
@@ -48,12 +50,12 @@ clean:
 enable:
 	@echo "Enabling $(SCRIPT_NAME)..."
 	@kwriteconfig6 --file kwinrc --group Plugins --key $(SCRIPT_NAME)Enabled true
-	@qdbus org.kde.KWin /KWin reconfigure
+	@qdbus6 org.kde.KWin /KWin reconfigure
 
 disable:
 	@echo "Disabling $(SCRIPT_NAME)..."
 	@kwriteconfig6 --file kwinrc --group Plugins --key $(SCRIPT_NAME)Enabled false
-	@qdbus org.kde.KWin /KWin reconfigure
+	@qdbus6 org.kde.KWin /KWin reconfigure
 
 restart-kwin:
 	if [ "$$XDG_SESSION_TYPE" = "x11" ]; then \

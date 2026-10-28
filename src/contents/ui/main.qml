@@ -5,7 +5,7 @@ import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.core as PlasmaCore
 
 import "components" as Components
-import "native" as Native
+import "moveinput" as Native
 import "../code/selection.js" as Selection
 
 PlasmaCore.Dialog {
@@ -34,6 +34,10 @@ PlasmaCore.Dialog {
     property bool dragCancelled: false
     property var dragOriginalGeometry: null
     property var dragOriginalTile: null
+    property var draggedWindow: null
+    property var overlayWindow: null
+    property var stackedOverlay: null
+    property var stackedClient: null
     property bool shiftDrag: config.enableZoneOverlay
         && inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0
     property var activeScreen: null
@@ -41,7 +45,7 @@ PlasmaCore.Dialog {
     property bool showZoneOverlay: config.zoneOverlayShowWhen == 0
     property var errors: []
 
-    title: "KZones Overlay"
+    title: "KFancyZones Overlay"
     location: PlasmaCore.Types.Desktop
     type: PlasmaCore.Dialog.OnScreenDisplay
     backgroundHints: PlasmaCore.Types.NoBackground
@@ -69,7 +73,7 @@ PlasmaCore.Dialog {
         // load values from configuration
         config = {
             // enable zone selector
-            enableZoneSelector: KWin.readConfig("enableZoneSelector", true),
+            enableZoneSelector: KWin.readConfig("enableZoneSelector", false),
             // distance from the top of the screen to trigger the zone selector
             zoneSelectorTriggerDistance: KWin.readConfig("zoneSelectorTriggerDistance", 1),
             // enable zone overlay
@@ -115,7 +119,7 @@ PlasmaCore.Dialog {
 
     function log(message) {
         if (!config.enableDebugLogging) return;
-        console.log("KZones: " + message);
+        console.log("KFancyZones: " + message);
     }
 
     function show() {
@@ -130,6 +134,7 @@ PlasmaCore.Dialog {
     }
 
     function hide() {
+        releaseOverlayStacking();
         // hide OSD
         mainDialog.shown = false;
         mainDialog.visible = false;
@@ -165,6 +170,28 @@ PlasmaCore.Dialog {
         zoneSelection = {context: "", zones: [], hovered: -1, extending: false};
     }
 
+    function releaseOverlayStacking() {
+        if (stackedOverlay && stackedClient) Workspace.unconstrain(stackedOverlay, stackedClient);
+        stackedOverlay = null;
+        stackedClient = null;
+    }
+
+    function updateOverlayStacking() {
+        if (!moving || !mainDialog.visible || !draggedWindow) {
+            releaseOverlayStacking();
+            return;
+        }
+        if (!overlayWindow) {
+            overlayWindow = Workspace.stackingOrder.find(window => window.caption === mainDialog.title) || null;
+        }
+        if (!overlayWindow || (stackedOverlay === overlayWindow && stackedClient === draggedWindow)) return;
+        releaseOverlayStacking();
+        Workspace.constrain(overlayWindow, draggedWindow);
+        Workspace.raiseWindow(draggedWindow);
+        stackedOverlay = overlayWindow;
+        stackedClient = draggedWindow;
+    }
+
     function zoneDragEnabled() {
         return config.zoneOverlayShowWhen !== 2
             || (inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0);
@@ -181,6 +208,7 @@ PlasmaCore.Dialog {
     function updateShiftSelection() {
         if (!moving || dragCancelled) return;
         if (!zoneDragEnabled()) {
+            releaseOverlayStacking();
             // Key release wins over any queued polling or mouse-release handler.
             resetZoneSelection();
             highlightedZone = -1;
@@ -189,6 +217,7 @@ PlasmaCore.Dialog {
             return;
         }
         mainDialog.visible = shown;
+        updateOverlayStacking();
         refreshClientArea();
         // Sample directly on modifier changes and drop, not just at the polling interval.
         if (shiftDrag && !zoneSelector.expanded) {
@@ -572,9 +601,11 @@ PlasmaCore.Dialog {
 
     property Native.InputState modifierState: Native.InputState {
         id: inputState
+        window: mainDialog.draggedWindow
+        suppressNativeTiling: mainDialog.moving && config.enableZoneOverlay
         onModifiersChanged: {
-            // Clear selection synchronously on Shift-up. The queued refresh runs
-            // after KWin's own Shift handler so its outline does not remain visible.
+            // Clear selection synchronously on Shift-up; refresh once more after
+            // the input event has finished updating the window position.
             mainDialog.updateShiftSelection();
             Qt.callLater(mainDialog.updateShiftSelection);
         }
@@ -680,7 +711,7 @@ PlasmaCore.Dialog {
         // refresh client area
         refreshClientArea();
         mainDialog.loadConfig();
-        console.info("KZones FancyZones 0.9.2.5 loaded: native=" + inputState.available
+        console.info("KFancyZones 0.9.2.9 loaded: native=" + inputState.available
             + ", mode=" + config.zoneOverlayShowWhen + ", zones=" + config.layouts[0].zones.length);
 
         // match all clients to zones and connect signals
@@ -689,6 +720,8 @@ PlasmaCore.Dialog {
             connectSignals(Workspace.stackingOrder[i]);
         }
     }
+
+    Component.onDestruction: releaseOverlayStacking()
 
     Item {
         id: mainItem
@@ -707,6 +740,7 @@ PlasmaCore.Dialog {
                     log("Interactive move/resize started for client " + client.resourceClass.toString());
                     if (client.resizeable && checkFilter(client)) {
                         if (client.move && checkFilter(client)) {
+                            draggedWindow = client;
                             dragCancelled = false;
                             resetZoneSelection();
                             dragOriginalGeometry = {
@@ -791,6 +825,7 @@ PlasmaCore.Dialog {
                     resizing = false;
                     dragOriginalGeometry = null;
                     dragOriginalTile = null;
+                    draggedWindow = null;
                 }
 
                 // fix from https://github.com/gerritdevriese/kzones/pull/25
@@ -1000,6 +1035,11 @@ PlasmaCore.Dialog {
 
             function onWindowAdded(client) {
 
+                if (client.caption === mainDialog.title) {
+                    overlayWindow = client;
+                    Qt.callLater(updateOverlayStacking);
+                }
+
                 connectSignals(client);
 
                 // check if client is in a zone application list
@@ -1018,6 +1058,14 @@ PlasmaCore.Dialog {
                 // check if new window spawns in a zone
                 if (client.zone == undefined || client.zone == -1) matchZone(client);
 
+            }
+
+            function onWindowRemoved(client) {
+                if (client === overlayWindow || client === draggedWindow) {
+                    releaseOverlayStacking();
+                    if (client === overlayWindow) overlayWindow = null;
+                    if (client === draggedWindow) draggedWindow = null;
+                }
             }
         }
 

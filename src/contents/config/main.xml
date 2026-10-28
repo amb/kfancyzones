@@ -8,7 +8,7 @@
 
         <!-- General -->
         <entry name="enableZoneSelector" type="Bool">
-            <default>true</default>
+            <default>false</default>
         </entry>
 
         <entry name="zoneSelectorTriggerDistance" type="Int">

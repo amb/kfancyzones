@@ -1,6 +1,8 @@
     // Appended only to a temporary test copy of the production overlay.
     property TestNative.TestInput integrationInput: TestNative.TestInput { id: testInput }
     property var integrationWindow: null
+    property var integrationNeighbor: null
+    property bool integrationKeepAbove: false
     property var integrationOriginal: null
     property var integrationFreeGeometry: null
     property int integrationStep: 0
@@ -16,10 +18,14 @@
                 const w = mainDialog.integrationWindow;
                 switch (mainDialog.integrationStep) {
                 case 0:
-                    integrationWindow = Workspace.stackingOrder.find(client => client.caption === "KZones integration target");
+                    integrationWindow = Workspace.stackingOrder.find(client => client.caption === "KFancyZones integration target");
                     if (!integrationWindow) return;
+                    integrationNeighbor = Workspace.stackingOrder.find(client => client.caption === "KFancyZones integration neighbor");
+                    if (!integrationNeighbor) return;
+                    integrationKeepAbove = integrationWindow.keepAbove;
                     integrationAssert(inputState.available, "native input backend unavailable");
                     integrationAssert(config.layouts[0].zones.length === 8, "default is not 4x2");
+                    integrationAssert(!config.enableZoneSelector, "fresh install enables the mini-grid selector");
                     integrationOriginal = integrationWindow.frameGeometry;
                     Workspace.activeWindow = integrationWindow;
                     testInput.pointer(100,100);
@@ -37,9 +43,15 @@
                     integrationAssert(shiftDrag, "Shift state did not reach QML");
                     integrationAssert(snapPreview.visible && snapPreview.width === 480, "single-zone final rectangle is missing");
                     integrationAssert((inputState.modifiers & Qt.ControlModifier) !== 0, "Ctrl state did not reach QML");
+                    integrationAssert(overlayWindow !== null, "overlay window not found for stacking");
+                    integrationAssert(Workspace.stackingOrder.indexOf(w) > Workspace.stackingOrder.indexOf(overlayWindow), "dragged window is below painted rectangles");
+                    integrationAssert(Workspace.stackingOrder.indexOf(integrationNeighbor) < Workspace.stackingOrder.indexOf(overlayWindow), "overlay is below the rest of the desktop");
+                    integrationAssert(w.keepAbove === integrationKeepAbove, "always-on-top setting was changed");
                     testInput.pointer(600,100);
                     break;
                 case 3:
+                    console.info("KFANCYZONES_NATIVE_OUTLINE_SHOWS: " + testInput.outlineShows);
+                    integrationAssert(testInput.outlineShows === 0, "native tile preview was created during zone selection");
                     integrationAssert(highlightedZones.includes(0) && highlightedZones.includes(1), "multi-zone preview did not expand");
                     integrationAssert(selectionGeometry.width === 960, "combined preview width is incorrect: "
                         + JSON.stringify({geometry:selectionGeometry,zones:highlightedZones,area:clientArea,cursor:Workspace.cursorPos}));
@@ -51,6 +63,7 @@
                     testInput.button(false);
                     break;
                 case 4:
+                    integrationAssert(stackedClient === null && stackedOverlay === null, "stacking constraint remains after drop");
                     integrationAssert(w.tile === null, "window remains linked to a native tile");
                     integrationAssert(Math.abs(w.frameGeometry.width - 960) <= 1, "combined drop width is incorrect: " + JSON.stringify(w.frameGeometry));
                     integrationAssert(Math.abs(w.frameGeometry.height - 540) <= 1, "combined drop height is incorrect");
@@ -126,6 +139,7 @@
                     testInput.key(42,false);
                     integrationAssert(highlightedZones.length === 0 && !mainDialog.visible, "Shift release did not immediately cancel zone mode");
                     integrationAssert(w.move, "Shift release cancelled the window move");
+                    integrationAssert(stackedClient === null && stackedOverlay === null, "stacking constraint remains after Shift release");
                     testInput.pointer(2800,300);
                     break;
                 case 18:
@@ -136,16 +150,43 @@
                     testInput.button(false);
                     break;
                 case 19:
+                    integrationAssert(testInput.outlineShows === 0, "native preview was created during a zone gesture");
                     integrationAssert(w.tile === null, "Shift-up before mouse-up left a native tile");
                     integrationAssert(Selection.matches(w.frameGeometry,integrationFreeGeometry), "Shift-up before mouse-up snapped instead of dropping freely");
                     testInput.key(29,false);
-                    console.log("KZONES_INTEGRATION: PASS");
+                    // A Shift already held when a move begins is also owned.
+                    testInput.key(42,true);
+                    testInput.button(true);
+                    Workspace.slotWindowMove();
+                    break;
+                case 20:
+                    testInput.pointer(2600,400);
+                    break;
+                case 21:
+                    integrationAssert(mainDialog.visible && highlightedZones.length === 1, "Shift held before move did not select a zone");
+                    integrationAssert(testInput.outlineShows === 0, "Shift held before move created native preview");
+                    testInput.button(false);
+                    testInput.key(42,false);
+                    // With KZones disabled the filter must leave native tiling alone.
+                    config.enableZoneOverlay = false;
+                    testInput.button(true);
+                    Workspace.slotWindowMove();
+                    break;
+                case 22:
+                    testInput.key(42,true);
+                    testInput.pointer(2700,450);
+                    break;
+                case 23:
+                    integrationAssert(testInput.outlineShows > 0, "native Shift preview was suppressed with KZones disabled");
+                    testInput.key(42,false);
+                    testInput.button(false);
+                    console.log("KFANCYZONES_INTEGRATION: PASS");
                     stop();
                     break;
                 }
                 mainDialog.integrationStep++;
             } catch (error) {
-                console.error("KZONES_INTEGRATION: FAIL: " + error.message);
+                console.error("KFANCYZONES_INTEGRATION: FAIL: " + error.message);
                 stop();
             }
         }

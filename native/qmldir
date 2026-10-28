@@ -1,2 +1,2 @@
-module KZones.FancyZonesInput
-plugin kzonesinputplugin
+module KFancyZones.Input
+plugin kfancyzonesinputplugin

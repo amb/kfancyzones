@@ -1,111 +1,109 @@
-# Local development
+# Development
 
-## MVP baseline
+## Supported baseline
 
-Version **0.9.2.2** is the minimal, unpolished MVP confirmed working in the
-active desktop session. Preserve its gesture behavior before further pruning.
-It retains upstream features and rough edges. KWin can cache changed QML across
-script reloads; source updates may require logging out and back in. Automatic
-cache cleanup is not part of this MVP.
+The tested environment is Kubuntu 26.04, KWin/Plasma 6.6.6, Qt 6.10.2, Wayland.
+Other versions and X11 are unverified. The helper is loaded into KWin and links
+against its development API. Build on the target system and rebuild after KWin
+upgrades; the package is not a portable binary for arbitrary Plasma releases.
 
-Branch `local/fancyzones` started from upstream v0.9.2. The local feature adds
-multi-zone selection and an eight-zone (4 columns x 2 rows) default layout.
-By default, zones are shown only while Shift is held during a window drag.
-Ctrl adds visited zones to the selection. Releasing the mouse first accepts
-the bounding rectangle; releasing Shift first immediately clears the selection
-and continues the normal window drag without snapping.
+Build dependencies and user installation are documented in [README.md](README.md).
+Node.js 24 or newer is required for unit tests. Python 3, Qt Quick Test tools,
+`dbus-run-session`, `qdbus6`, and `kwin_wayland` are needed for integration tests.
 
-## Current visual revision
+## Native helper and overlay
 
-Version **0.9.2.5** preserves the MVP gestures. Available zones have unfilled
-gray outlines; one translucent green rectangle previews the final snap bounds.
-Gray outlines overlapping that rectangle are hidden, including intervening
-zones enclosed by a multi-zone bounding rectangle. Mini-grid icons and their
-obsolete overlay settings have been removed.
+`native/inputplugin.cpp` registers `KFancyZones.Input`. It observes raw modifier
+state and Escape, and installs an input filter immediately before KWin's move
+filter. The filter handles only the window owned by this script while Shift is
+held during an interactive move. It forwards KWin's normal move update with
+Shift removed from that call, while QML continues to see the real modifiers.
+Other window moves, resizing, and mouse-button handling remain with KWin.
+The production helper does not inject input or modify KWin's system files.
 
-Remaining issue: slight flicker of the dragged window has been reported during
-Shift-drag. It is not intentional. Interaction between KWin's built-in outline
-and the overlay's repeated `hideOutline()` calls is a candidate cause; the cause
-has not been confirmed or fixed in this revision.
+This avoids a native-preview loop: KWin showed its custom-tile outline on each
+pointer move, then the script hid it. The outline animates from the moving
+window's geometry. An isolated short drag produced three native activations
+before suppression and zero afterward; desktop testing confirmed the flicker
+was no longer visible. With the overlay disabled, native Shift tiling still works.
 
-## Build requirements
+The overlay temporarily constrains itself below the dragged window and above
+other normal windows, without changing the window's always-on-top flag. The
+constraint is removed on Shift release, drop, cancellation, window closure, or
+script unload. Client callbacks use owned QML Connections to avoid stale
+callbacks after script reloads.
 
-On Kubuntu 26.04, install these yourself with administrator privileges:
-
-```sh
-sudo apt-get install --no-install-recommends kwin-dev extra-cmake-modules qt6-base-dev qt6-declarative-dev cmake g++ make zip
-```
-
-The native QML module uses KWin's modifier state and observes Escape before
-KWin processes drag cancellation. It does not intercept input, inject events,
-run a background service, access the network, or modify KWin's system files.
-It builds against KWin 6.6's development API. Rebuild it when upgrading KWin;
-compatibility with other KWin versions and X11 has not been established.
-
-## Build and install
-
-Package the local fork without installing it:
+## Build products and live reloads
 
 ```sh
 make build
 ```
 
-This compiles `native/inputplugin.cpp`, copies the resulting QML module into
-`src/contents/ui/native`, and builds `kzones-fancyzones.kwinscript`. Generated files are
-ignored by Git. The package includes only the production native module.
-The filled-preview revision uses a generated `ui/FilledPreviewOverlay.qml` entry
-point, copied from `main.qml`, so an existing session can load the changed QML
-without reusing the MVP's cached entry point.
+The build generates the native module in `build/native/qml`, copies it into
+`src/contents/ui/moveinput`, copies the canonical `main.qml` to `KFancyZones.qml`,
+and includes the license in `kfancyzones.kwinscript`. Generated files and local
+build directories are ignored by Git. Only the production helper is packaged.
 
-To install the fork as a separate script:
+KWin can cache QML across reloads and retain native libraries in memory. A changed
+entry-point URL can bypass a cached root QML file during development. Native
+changes may require a new module/library name or a fresh desktop session. Never
+overwrite a loaded shared library in place. Use the isolated test compositor
+for native development; no KWin restart is required for the test suite.
 
-```sh
-make install
-```
-
-In System Settings > Window Management > KWin Scripts, disable the original
-**KZones** and enable **KZones FancyZones**. The fork uses plugin ID
-`kzones-fancyzones`, its own install directory, and `[Script-kzones-fancyzones]`
-settings. This avoids KWin reusing the original script's cached QML or settings.
-Its defaults are the 4x2 layout and **I hold Shift while dragging** activation.
-Window callbacks are owned QML Connections, so they are removed on unload.
-KWin's built-in Shift-drag handler still runs, but the fork hides its outline
-while selecting KZones areas and detaches its native tile before applying the
-final geometry. Native Meta+Arrow shortcuts are separate: remove their Quick
-Tile bindings and bind KZones actions if independent resizing is desired.
+`make` builds the package. `make test` runs unit tests. Installation and enabling
+are explicit targets: `make install`, then enable in KWin Scripts. `make enable`
+and `make disable` write the plugin flag and ask KWin to reconfigure.
 
 ## Checks
+
+Unit tests execute the actual selection library and methods extracted from QML:
 
 ```sh
 make check
 ```
 
-Runs geometry, selection-state, and drop tests against the actual JavaScript
-library and JavaScript methods extracted from the QML overlay. No desktop is
-needed. Node.js 24 or newer is used (`--test-isolation=none`).
-
-For an integration test inside a separate headless KWin compositor:
+For the visual component tests:
 
 ```sh
-cmake -S native -B build/native -DKZONES_BUILD_INTEGRATION_TESTS=ON
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+```
+
+For the integration test in a separate headless KWin compositor:
+
+```sh
+cmake -S native -B build/native -DKFANCYZONES_BUILD_INTEGRATION_TESTS=ON
 make native
 python3 tests/integration.py
 ```
 
-The test creates its own D-Bus session, virtual output, configuration, data, and
-runtime directories. It maps a test window and checks actual Ctrl/Shift input,
-multi-zone preview, final window size, native tile detachment, Ctrl release,
-Shift release cancellation, mouse-first acceptance, and the normal Escape
-window-move cancellation. It also unloads and reloads the script in the same
-compositor and verifies that callbacks are cleaned up. This does not verify
-loading changed source in an existing QML engine. Logs are in `build/integration.log` and
-`build/integration-bus.log`. Temporary processes are confined to their own
-process group and stopped afterward.
+The test creates a private D-Bus session, XDG directories, configuration and two
+virtual outputs. It checks fresh-install defaults without overriding the selector,
+real Shift/Ctrl input, multi-zone bounds, green preview and gray outlines,
+mouse-first acceptance, Shift-first cancellation, tile detachment, Ctrl release,
+Escape, cross-output placement, overlay stacking and cleanup. It checks zero
+native preview activations during zone selection and native preview availability
+when the overlay is disabled. It unloads/reloads the script and repeats in the
+same compositor, but does not verify cache invalidation for changed source.
+Logs are `build/integration.log` and `build/integration-bus.log`. All test
+processes are confined to their own process group and stopped afterward.
 
-The input injection driver in `tests/native` is compiled only when the test
-option is enabled, is never packaged, and refuses input injection without
-`KZONES_INTEGRATION_TEST=1`.
+The injection driver under `tests/native` is built only when the integration
+option is enabled, is never packaged, and refuses injection without
+`KFANCYZONES_INTEGRATION_TEST=1`.
 
-Original audit reproductions remain available with `node audit/reproduce.cjs`.
-They explicitly load the original `v0.9.2` source from Git, so they continue to
-document the original defects after local fixes.
+## History
+
+- `65e653e` / 0.9.2.2: minimal unpolished MVP with Shift/Ctrl multi-zone gestures.
+- `3b9629c` / 0.9.2.5: unfilled gray zones and one filled green bounding preview.
+- 0.9.2.6: keep the dragged window above the overlay.
+- 0.9.2.7: suppress the competing native preview, resolving the observed flicker.
+- 0.9.2.8: rename the fork to KFancyZones.
+- 0.9.2.9: disable the old selector on fresh installs and prepare public docs.
+
+The earlier local rename copied settings from `[Script-kzones-fancyzones]` into
+`[Script-kfancyzones]` on the development desktop. That was a one-time migration;
+`make install` does not perform it. Shortcut IDs retain `KZones:` for compatibility.
+
+[LOCAL_AUDIT.md](LOCAL_AUDIT.md) records the original upstream v0.9.2 audit.
+`node audit/reproduce.cjs` deliberately loads that original source from Git and
+reproduces its defects; it does not audit the current fork.

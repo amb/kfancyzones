@@ -12,7 +12,7 @@ of the original installed version.
 
 ## Baseline and scope
 
-- Local repository: `<checkout>`.
+- Repository: this checkout (originally named `kzones`).
 - Working branch: `local/fancyzones`.
 - Baseline: upstream `v0.9.2`, commit
   `48fc4872eadfe3fb7bd19d4426b43c43cd617750`.

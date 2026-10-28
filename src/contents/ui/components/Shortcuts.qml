@@ -3,11 +3,12 @@ import org.kde.kwin
 
 Item {
 
+    // Keep action IDs stable so existing custom shortcuts survive the rename.
     signal cycleLayouts()
 
     ShortcutHandler {
         name: "KZones: Cycle layouts"
-        text: "KZones: Cycle layouts"
+        text: "KFancyZones: Cycle layouts"
         sequence: "Ctrl+Alt+D"
         onActivated: {
             cycleLayouts();
@@ -18,7 +19,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Cycle layouts (reversed)"
-        text: "KZones: Cycle layouts (reversed)"
+        text: "KFancyZones: Cycle layouts (reversed)"
         sequence: "Ctrl+Alt+Shift+D"
         onActivated: {
             cycleLayoutsReversed();
@@ -29,7 +30,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Move active window to next zone"
-        text: "KZones: Move active window to next zone"
+        text: "KFancyZones: Move active window to next zone"
         sequence: "Ctrl+Alt+Right"
         onActivated: {
             moveActiveWindowToNextZone()
@@ -40,7 +41,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Move active window to previous zone"
-        text: "KZones: Move active window to previous zone"
+        text: "KFancyZones: Move active window to previous zone"
         sequence: "Ctrl+Alt+Left"
         onActivated: {
             moveActiveWindowToPreviousZone()
@@ -51,7 +52,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Toggle zone overlay"
-        text: "KZones: Toggle zone overlay"
+        text: "KFancyZones: Toggle zone overlay"
         sequence: "Ctrl+Alt+C"
         onActivated: {
             toggleZoneOverlay();
@@ -62,7 +63,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Switch to next window in current zone"
-        text: "KZones: Switch to next window in current zone"
+        text: "KFancyZones: Switch to next window in current zone"
         sequence: "Ctrl+Alt+Up"
         onActivated: {
             switchToNextWindowInCurrentZone()
@@ -73,7 +74,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Switch to previous window in current zone"
-        text: "KZones: Switch to previous window in current zone"
+        text: "KFancyZones: Switch to previous window in current zone"
         sequence: "Ctrl+Alt+Down"
         onActivated: {
             switchToPreviousWindowInCurrentZone()
@@ -87,7 +88,7 @@ Item {
         delegate: Item {
             ShortcutHandler {
                 name: "KZones: Move active window to zone " + modelData
-                text: "KZones: Move active window to zone " + modelData
+                text: "KFancyZones: Move active window to zone " + modelData
                 sequence: "Ctrl+Alt+Num+" + modelData
                 onActivated: {
                     moveActiveWindowToZone(modelData - 1)
@@ -103,7 +104,7 @@ Item {
         delegate: Item {
             ShortcutHandler {
                 name: "KZones: Activate layout " + modelData
-                text: "KZones: Activate layout " + modelData
+                text: "KFancyZones: Activate layout " + modelData
                 sequence: "Meta+Num+" + modelData
                 onActivated: {
                     activateLayout(modelData - 1)
@@ -116,7 +117,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Move active window up"
-        text: "KZones: Move active window up"
+        text: "KFancyZones: Move active window up"
         sequence: "Meta+Up"
         onActivated: {
             moveActiveWindowUp()
@@ -127,7 +128,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Move active window down"
-        text: "KZones: Move active window down"
+        text: "KFancyZones: Move active window down"
         sequence: "Meta+Down"
         onActivated: {
             moveActiveWindowDown()
@@ -138,7 +139,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Move active window left"
-        text: "KZones: Move active window left"
+        text: "KFancyZones: Move active window left"
         sequence: "Meta+Left"
         onActivated: {
             moveActiveWindowLeft()
@@ -149,7 +150,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Move active window right"
-        text: "KZones: Move active window right"
+        text: "KFancyZones: Move active window right"
         sequence: "Meta+Right"
         onActivated: {
             moveActiveWindowRight()
@@ -160,7 +161,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Snap active window"
-        text: "KZones: Snap active window"
+        text: "KFancyZones: Snap active window"
         sequence: "Meta+Shift+Space"
         onActivated: {
             snapActiveWindow()
@@ -171,7 +172,7 @@ Item {
 
     ShortcutHandler {
         name: "KZones: Snap all windows"
-        text: "KZones: Snap all windows"
+        text: "KFancyZones: Snap all windows"
         sequence: "Meta+Space"
         onActivated: {
             snapAllWindows()

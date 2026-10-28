@@ -6,3 +6,12 @@ KZones.kwinscript
 
 /kzones-fancyzones.kwinscript
 /src/contents/ui/FilledPreviewOverlay.qml
+/src/contents/ui/RaisedWindowOverlay.qml
+/src/contents/ui/NativePreviewFreeOverlay.qml
+/src/contents/ui/moveinput/
+
+/kfancyzones.kwinscript
+/src/contents/ui/KFancyZones.qml
+/src/LICENSE.md
+__pycache__/
+*.pyc

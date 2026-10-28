@@ -13,13 +13,15 @@ function createContext(overrides = {}) {
         clientArea: {x: 0, y: 0, width: 1920, height: 1080},
         activeScreen: {name: 'screen-1'},
         moving: true, dragCancelled: false, dragOriginalGeometry: null, dragOriginalTile: null,
+        draggedWindow: null, overlayWindow: null, stackedOverlay: null, stackedClient: null,
         highlightedZone: -1,
         zoneSelection: {context: '', zones: [], hovered: -1, extending: false},
         zoneSelector: {expanded: false},
         mainDialog: {visible: false}, shown: true,
         inputState: {available: true, modifiers: 0},
         Workspace: {currentDesktop: {id: 'desktop-1'}, currentActivity: 'activity-1',
-            cursorPos: {x: 100, y: 100}, hideOutline() {}},
+            cursorPos: {x: 100, y: 100}, stackingOrder: [], hideOutline() {},
+            constrain() {}, unconstrain() {}, raiseWindow() {}},
         KWin: {readConfig(key, fallback) {return key in overrides ? overrides[key] : fallback;}},
         Qt: {ShiftModifier: 0x02000000, ControlModifier: 0x04000000,
             rect: (x, y, width, height) => ({x, y, width, height})},
@@ -31,7 +33,8 @@ function createContext(overrides = {}) {
     }});
     Object.defineProperty(c, 'highlightedZones', {get() {return selection.selected(c.zoneSelection);}});
     vm.createContext(c);
-    for (const name of ['loadConfig', 'checkFilter', 'resetZoneSelection', 'zoneDragEnabled', 'updateZoneSelection',
+    for (const name of ['loadConfig', 'checkFilter', 'resetZoneSelection', 'releaseOverlayStacking',
+        'updateOverlayStacking', 'zoneDragEnabled', 'updateZoneSelection',
         'updateShiftSelection', 'moveClientToZone', 'moveClientToZones', 'saveClientProperties',
         'matchZone', 'finishZoneDrop', 'cancelZoneDrop']) {
         const match = mainSource.match(new RegExp('^    function ' + name + '\\([^]*?^    }', 'm'));

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>KWin::KZonesConfigForm</class>
- <widget class="QWidget" name="KWin::KZonesConfigForm">
+ <class>KWin::KFancyZonesConfigForm</class>
+ <widget class="QWidget" name="KWin::KFancyZonesConfigForm">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -623,10 +623,10 @@
      <item>
       <widget class="QLabel" name="label_mainBottomLeft">
        <property name="toolTip">
-        <string>https://github.com/gerritdevriese/kzones</string>
+        <string>https://github.com/amb/kfancyzones</string>
        </property>
        <property name="text">
-        <string>&lt;a href=&quot;https://github.com/gerritdevriese/kzones&quot;&gt;Github page&lt;/a&gt;</string>
+        <string>&lt;a href=&quot;https://github.com/amb/kfancyzones&quot;&gt;KFancyZones on GitHub&lt;/a&gt;</string>
        </property>
        <property name="margin">
         <number>8</number>

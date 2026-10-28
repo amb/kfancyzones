@@ -14,8 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def run():
-    if not os.environ.get("KZONES_PRIVATE_TEST_BUS"):
-        with tempfile.TemporaryDirectory(prefix="kzones-test-bus-") as tmp:
+    if not os.environ.get("KFANCYZONES_PRIVATE_TEST_BUS"):
+        with tempfile.TemporaryDirectory(prefix="kfancyzones-test-bus-") as tmp:
             env = os.environ.copy()
             for key, name in [("XDG_RUNTIME_DIR", "runtime"), ("XDG_CONFIG_HOME", "config"),
                               ("XDG_DATA_HOME", "data"), ("XDG_CACHE_HOME", "cache"),
@@ -23,7 +23,7 @@ def run():
                 directory = Path(tmp) / name
                 directory.mkdir(mode=0o700)
                 env[key] = str(directory)
-            env.update(KZONES_PRIVATE_TEST_BUS="1", QT_NO_XDG_DESKTOP_PORTAL="1",
+            env.update(KFANCYZONES_PRIVATE_TEST_BUS="1", QT_NO_XDG_DESKTOP_PORTAL="1",
                        QT_ACCESSIBILITY="0", NO_AT_BRIDGE="1", QT_QPA_PLATFORMTHEME="generic")
             with (ROOT / "build/integration-bus.log").open("w") as log:
                 process = subprocess.Popen(["dbus-run-session", "--", sys.executable, __file__, "--private"],
@@ -41,7 +41,7 @@ def run():
             print((ROOT / "build/integration-bus.log").read_text()[-12000:])
             return result
 
-    with tempfile.TemporaryDirectory(prefix="kzones-integration-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="kfancyzones-integration-") as tmp:
         base = Path(tmp)
         env = os.environ.copy()
         for key, name in [("XDG_RUNTIME_DIR", "runtime"), ("XDG_CONFIG_HOME", "config"),
@@ -50,27 +50,27 @@ def run():
             directory = base / name
             directory.mkdir(mode=0o700)
             env[key] = str(directory)
-        env.update(KWIN_COMPOSE="Q", KZONES_INTEGRATION_TEST="1", QT_QUICK_BACKEND="software")
+        env.update(KWIN_COMPOSE="Q", KFANCYZONES_INTEGRATION_TEST="1", QT_QUICK_BACKEND="software")
         for key in ["WAYLAND_DISPLAY", "DISPLAY", "QT_QPA_PLATFORM", "SESSION_MANAGER"]:
             env.pop(key, None)
 
-        package = base / "data/kwin/scripts/kzones-fancyzones"
+        package = base / "data/kwin/scripts/kfancyzones"
         shutil.copytree(ROOT / "src", package)
         testnative = package / "contents/ui/testnative"
         shutil.copytree(ROOT / "build/native/testqml", testnative)
         entry = json.loads((package / "metadata.json").read_text())["X-Plasma-MainScript"]
         main = package / "contents" / entry
-        text = main.read_text().replace('import "native" as Native',
-                                       'import "native" as Native\nimport "testnative" as TestNative')
+        text = main.read_text().replace('import "moveinput" as Native',
+                                       'import "moveinput" as Native\nimport "testnative" as TestNative')
         text = text[:text.rfind("}")] + (ROOT / "tests/integration.qml.inc").read_text() + "\n}\n"
         main.write_text(text)
         # KWin's package structure can still select ui/main.qml regardless of
         # X-Plasma-MainScript; instrument the canonical entry point as well.
         (package / "contents/ui/main.qml").write_text(text)
-        (base / "config/kwinrc").write_text("[Plugins]\nkzones-fancyzonesEnabled=true\n"
-                                           "[Script-kzones-fancyzones]\nenableZoneSelector=false\n"
+        (base / "config/kwinrc").write_text("[Plugins]\nkfancyzonesEnabled=true\n"
+                                           "[Script-kfancyzones]\n"
                                            "enableDebugLogging=true\n")
-        client = ROOT / "build/native/kzones-test-client"
+        client = ROOT / "build/native/kfancyzones-test-client"
         command = ["kwin_wayland", "--virtual", "--width", "1920", "--height", "1080",
                    "--output-count", "2", "--no-lockscreen", "--no-global-shortcuts", "--no-kactivities", str(client)]
         log_path = ROOT / "build/integration.log"
@@ -81,11 +81,11 @@ def run():
                 reloaded = False
                 while time.monotonic() < deadline:
                     output = log_path.read_text()
-                    passes = output.count("KZONES_INTEGRATION: PASS")
+                    passes = output.count("KFANCYZONES_INTEGRATION: PASS")
                     if passes and not reloaded:
                         # Reload in the same engine to catch stale window callbacks.
                         subprocess.run(["qdbus6", "org.kde.KWin", "/Scripting",
-                                        "org.kde.kwin.Scripting.unloadScript", "kzones-fancyzones"],
+                                        "org.kde.kwin.Scripting.unloadScript", "kfancyzones"],
                                        env=env, check=True, stdout=subprocess.DEVNULL)
                         subprocess.run(["qdbus6", "org.kde.KWin", "/Scripting",
                                         "org.kde.kwin.Scripting.start"],
@@ -95,7 +95,7 @@ def run():
                         print("Virtual KWin integration: PASS (two outputs, Ctrl+Shift, bounding preview, "
                               "mouse-first acceptance, Shift-first cancellation, detachment, Ctrl release, Escape, hot reload)")
                         return 0
-                    if ("KZONES_INTEGRATION: FAIL" in output or "Component failed to load" in output
+                    if ("KFANCYZONES_INTEGRATION: FAIL" in output or "Component failed to load" in output
                             or "TypeError:" in output or "ReferenceError:" in output
                             or process.poll() is not None):
                         break

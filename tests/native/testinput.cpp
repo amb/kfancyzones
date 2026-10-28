@@ -6,12 +6,26 @@
 #include <input.h>
 #include <keyboard_input.h>
 #include <pointer_input.h>
+#include <outline.h>
+#include <workspace.h>
 
 class TestInput : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(int outlineShows READ outlineShows NOTIFY outlineShowsChanged)
 public:
-    using QObject::QObject;
+    explicit TestInput(QObject *parent = nullptr) : QObject(parent)
+    {
+        auto *outline = KWin::workspace()->outline();
+        connect(outline, &KWin::Outline::activeChanged, this, [this, outline] {
+            if (outline->isActive()) {
+                ++m_outlineShows;
+                Q_EMIT outlineShowsChanged();
+            }
+        });
+    }
+
+    int outlineShows() const { return m_outlineShows; }
 
     Q_INVOKABLE void key(int code, bool down)
     {
@@ -31,10 +45,14 @@ public:
             down ? KWin::PointerButtonState::Pressed : KWin::PointerButtonState::Released, time());
     }
 
+Q_SIGNALS:
+    void outlineShowsChanged();
+
 private:
+    int m_outlineShows = 0;
     bool enabled() const
     {
-        return qEnvironmentVariable("KZONES_INTEGRATION_TEST") == QLatin1String("1") && KWin::input();
+        return qEnvironmentVariable("KFANCYZONES_INTEGRATION_TEST") == QLatin1String("1") && KWin::input();
     }
     std::chrono::microseconds time() const
     {

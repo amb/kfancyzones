@@ -5,8 +5,11 @@ const path = require('node:path');
 const {root, selection: s, createContext, plain} = require('./helpers.cjs');
 const area = {x: 0, y: 0, width: 1920, height: 1080};
 
-test('default layout is eight equal zones in four columns and two rows', () => {
+test('fresh defaults use Shift-drag, eight zones, and no mini-grid selector', () => {
     const c = createContext();
+    assert.equal(c.config.enableZoneSelector, false);
+    assert.equal(c.config.zoneOverlayShowWhen, 2);
+    assert.equal(c.config.enableMultiZoneSelection, true);
     const layout = c.config.layouts[0];
     assert.equal(layout.zones.length, 8);
     for (let i = 0; i < 8; i++) {
@@ -15,6 +18,7 @@ test('default layout is eight equal zones in four columns and two rows', () => {
         });
     }
     const xml = fs.readFileSync(path.join(root, 'src/contents/config/main.xml'), 'utf8');
+    assert.match(xml, /<entry name="enableZoneSelector"[^]*?<default>false<\/default>/);
     const encoded = xml.match(/<entry name="layoutsJson"[^]*?<default>([^]*?)<\/default>/)[1];
     const decoded = encoded.replaceAll('&quot;', '"').replaceAll('&amp;', '&');
     assert.deepEqual(JSON.parse(decoded), plain(c.config.layouts));
