@@ -64,6 +64,8 @@ prop(table,'editTriggers','set','QAbstractItemView::NoEditTriggers')
 prop(table,'selectionMode','enum','QAbstractItemView::NoSelection')
 prop(table,'horizontalScrollBarPolicy','enum','Qt::ScrollBarAlwaysOff')
 prop(table,'verticalScrollBarPolicy','enum','Qt::ScrollBarAlwaysOff')
+for name in ['horizontalHeaderVisible', 'verticalHeaderVisible']:
+    E.SubElement(E.SubElement(table,'attribute',name=name),'bool').text='false'
 outer[-1].set('alignment','Qt::AlignHCenter')
 label(outer,'gestureHelp','<b>Shift + drag</b> selects a zone. Add <b>Ctrl</b> to combine zones.<br/>Release the <b>mouse first</b> to accept, or release <b>Shift first</b> to cancel.')
 shortcuts=label(outer,'shortcutsLink','<a href="systemsettings://kcm_keys">Configure keyboard shortcuts…</a>')
