@@ -4,7 +4,8 @@
 #include <QCheckBox>
 #include <QFile>
 #include <QLabel>
-#include <QPushButton>
+#include <QTabWidget>
+#include <QPlainTextEdit>
 #include <QSpinBox>
 #include <QTableWidget>
 #include <QTest>
@@ -24,11 +25,13 @@ int main(int argc, char **argv)
     auto *columns = form->findChild<QSpinBox *>("kcfg_gridColumns");
     auto *rows = form->findChild<QSpinBox *>("kcfg_gridRows");
     auto *subdivide = form->findChild<QCheckBox *>("kcfg_subdivideZones");
-    auto *advanced = form->findChild<QPushButton *>("advancedToggle");
+    auto *tabs = form->findChild<QTabWidget *>("settingsTabs");
     auto *advancedOptions = form->findChild<QWidget *>("advancedOptions");
     auto *shortcuts = form->findChild<QLabel *>("shortcutsLink");
-    if (!columns || !rows || !subdivide || !advanced || !advancedOptions || !shortcuts)
+    if (!columns || !rows || !subdivide || !tabs || !advancedOptions || !shortcuts)
         return fail("Required controls are missing");
+    if (tabs->count() != 2 || tabs->tabText(0) != "Layout" || tabs->tabText(1) != "Advanced")
+        return fail("Settings must have Layout and Advanced tabs");
     form->show();
     QTest::qWait(20);
     auto preview = [&]() -> QTableWidget * {
@@ -44,7 +47,8 @@ int main(int argc, char **argv)
     auto *grid = preview();
     if (!grid || grid->columnCount() != 4 || grid->rowCount() != 2)
         return fail("Default preview is not 4x2");
-    if (advancedOptions->isVisible()) return fail("Advanced options start expanded");
+    if (tabs->currentIndex() != 0 || advancedOptions->isVisible())
+        return fail("Settings must start on the Layout tab");
     subdivide->setChecked(true);
     grid = preview();
     if (!grid || grid->columnCount() != 8 || grid->rowCount() != 4)
@@ -58,10 +62,15 @@ int main(int argc, char **argv)
     grid = preview();
     if (!grid || grid->columnCount() != 3 || grid->rowCount() != 1)
         return fail("Disabling subdivision did not restore the base grid");
-    advanced->click();
-    if (!advancedOptions->isVisible()) return fail("Advanced options did not expand");
-    advanced->click();
-    if (advancedOptions->isVisible()) return fail("Advanced options did not collapse");
+    tabs->setCurrentIndex(1);
+    if (!advancedOptions->isVisible() || columns->isVisible())
+        return fail("Advanced options are not on a separate tab");
+    if (!advancedOptions->findChild<QPlainTextEdit *>("kcfg_layoutsJson")->isVisible()
+        || !advancedOptions->findChild<QPlainTextEdit *>("kcfg_filterList")->isVisible())
+        return fail("Advanced tab is missing custom layouts or application filters");
+    tabs->setCurrentIndex(0);
+    if (advancedOptions->isVisible() || !columns->isVisible())
+        return fail("Returning to the Layout tab did not restore its controls");
     if (!shortcuts->openExternalLinks() || !shortcuts->text().contains("systemsettings://kcm_keys"))
         return fail("Shortcut link does not target the KDE shortcuts page");
     columns->setValue(4); rows->setValue(2);
@@ -69,6 +78,6 @@ int main(int argc, char **argv)
     QTest::qWait(20);
     const QString screenshot = qEnvironmentVariable("KFANCYZONES_SETTINGS_SCREENSHOT");
     if (!screenshot.isEmpty()) form->grab().save(screenshot);
-    qInfo() << "Settings form: PASS (4x2, 8x4 subdivision, changed grid, Advanced, shortcut link)";
+    qInfo() << "Settings form: PASS (4x2, 8x4 subdivision, changed grid, separate Advanced tab, shortcut link)";
     return 0;
 }

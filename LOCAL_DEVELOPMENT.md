@@ -97,7 +97,8 @@ The generic KWin settings loader uses `config.ui` and `main.xml`; it does not
 execute code behind the form. `bin/generate-settings.py` generates a form using
 only standard Qt widgets and signal/slot connections. Its stacked grid previews
 follow the column, row, and subdivision controls without a second native plugin.
-The Advanced section is collapsed initially; the shortcut link opens KDE's
+The dialog starts on the Layout tab, with custom layouts and application filters
+on a separate Advanced tab; the shortcut link opens KDE's
 Shortcuts page. Custom JSON overrides the regular grid and its subdivision.
 
 Regenerate the checked-in form after changing the generator:

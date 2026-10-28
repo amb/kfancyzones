@@ -62,12 +62,12 @@ make uninstall
 ## Configuration
 
 Use the settings button next to **KFancyZones** in KWin Scripts. The compact
-page offers **Columns**, **Rows**, and **Gap**, with a grid preview. Enable
+**Layout** tab offers **Columns**, **Rows**, and **Gap**, with a grid preview. Enable
 **Subdivide each zone into 2×2** to double the columns and rows: the default
 4×2 becomes **8×4**. Subdivision is off by default. Shift/Ctrl selection and
 release-order behavior stay the same at either grid size.
 
-**Advanced** contains optional custom layout JSON and application filters.
+The separate **Advanced** tab contains optional custom layout JSON and application filters.
 Custom layouts override the grid controls and preserve their own padding;
 [examples/simple.json](examples/simple.json) and
 [examples/advanced.json](examples/advanced.json) show the format. Leave the JSON
