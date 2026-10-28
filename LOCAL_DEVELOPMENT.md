@@ -40,7 +40,7 @@ make build
 ```
 
 The build generates the native module in `build/native/qml`, copies it into
-`src/contents/ui/moveinput`, copies the canonical `main.qml` to `KFancyZones.qml`,
+`src/contents/ui/moveinput`, copies the canonical `main.qml` to `CompactSettingsOverlay.qml`,
 and includes the license in `kfancyzones.kwinscript`. Generated files and local
 build directories are ignored by Git. Only the production helper is packaged.
 
@@ -91,6 +91,39 @@ The injection driver under `tests/native` is built only when the integration
 option is enabled, is never packaged, and refuses injection without
 `KFANCYZONES_INTEGRATION_TEST=1`.
 
+## Compact settings
+
+The generic KWin settings loader uses `config.ui` and `main.xml`; it does not
+execute code behind the form. `bin/generate-settings.py` generates a form using
+only standard Qt widgets and signal/slot connections. Its stacked grid previews
+follow the column, row, and subdivision controls without a second native plugin.
+The Advanced section is collapsed initially; the shortcut link opens KDE's
+Shortcuts page. Custom JSON overrides the regular grid and its subdivision.
+
+Regenerate the checked-in form after changing the generator:
+
+```sh
+python3 bin/generate-settings.py
+python3 bin/generate-settings.py --check
+```
+
+With integration-test builds enabled, the actual Qt form can be tested offscreen
+(`Qt6::UiTools` development files, supplied by `qt6-tools-dev`, are required):
+
+```sh
+QT_QPA_PLATFORM=offscreen build/native/kfancyzones-settings-test
+```
+
+Run the same KWin gestures against the subdivided layout:
+
+```sh
+KFANCYZONES_TEST_SUBDIVIDE=1 python3 tests/integration.py
+```
+
+`src/contents/code/layouts.js` generates the row-major grid, recognizes the legacy
+saved default, and validates custom JSON. Retired behavior keys are ignored;
+manual `enableDebugLogging` remains available for diagnostics.
+
 ## History
 
 - `65e653e` / 0.9.2.2: minimal unpolished MVP with Shift/Ctrl multi-zone gestures.
@@ -99,6 +132,7 @@ option is enabled, is never packaged, and refuses injection without
 - 0.9.2.7: suppress the competing native preview, resolving the observed flicker.
 - 0.9.2.8: rename the fork to KFancyZones.
 - 0.9.2.9: disable the old selector on fresh installs and prepare public docs.
+- 0.9.2.10: compact grid settings, 2×2 subdivision, and Advanced custom layouts/filters.
 
 The earlier local rename copied settings from `[Script-kzones-fancyzones]` into
 `[Script-kfancyzones]` on the development desktop. That was a one-time migration;

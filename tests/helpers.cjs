@@ -4,11 +4,13 @@ const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 const mainSource = fs.readFileSync(path.join(root, 'src/contents/ui/main.qml'), 'utf8');
 const selection = vm.createContext({});
+const layouts = vm.createContext({});
+vm.runInContext(fs.readFileSync(path.join(root, 'src/contents/code/layouts.js'), 'utf8'), layouts);
 vm.runInContext(fs.readFileSync(path.join(root, 'src/contents/code/selection.js'), 'utf8'), selection);
 
 function createContext(overrides = {}) {
     const c = {
-        Selection: selection,
+        Selection: selection, Layouts: layouts,
         config: {}, errors: [], currentLayout: 0,
         clientArea: {x: 0, y: 0, width: 1920, height: 1080},
         activeScreen: {name: 'screen-1'},
@@ -54,4 +56,4 @@ function client() {
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const nativeTile = () => ({unmanage(w) {w.tile=null;}, manage(w) {w.tile=this;}});
-module.exports = {root, selection, createContext, client, plain, nativeTile};
+module.exports = {root, selection, layouts, createContext, client, plain, nativeTile};

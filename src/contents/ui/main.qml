@@ -7,6 +7,7 @@ import org.kde.plasma.core as PlasmaCore
 import "components" as Components
 import "moveinput" as Native
 import "../code/selection.js" as Selection
+import "../code/layouts.js" as Layouts
 
 PlasmaCore.Dialog {
 
@@ -59,59 +60,54 @@ PlasmaCore.Dialog {
 
     function loadConfig() {
 
-        const defaultLayouts = '[{"name":"4 x 2 Grid","padding":0,"zones":[{"x":0,"y":0,"width":25,"height":50},{"x":25,"y":0,"width":25,"height":50},{"x":50,"y":0,"width":25,"height":50},{"x":75,"y":0,"width":25,"height":50},{"x":0,"y":50,"width":25,"height":50},{"x":25,"y":50,"width":25,"height":50},{"x":50,"y":50,"width":25,"height":50},{"x":75,"y":50,"width":25,"height":50}]}]';
-
-        let layouts;
-
-        try {
-            layouts = JSON.parse(KWin.readConfig("layoutsJson", defaultLayouts));
-        } catch (e) {
-            errors = errors.concat(`Could not load layouts from configuration, using default layouts.\nError: ${e.message}`);
-            layouts = JSON.parse(defaultLayouts);
-        }
+        const loaded = Layouts.load(KWin.readConfig("layoutsJson", ""),
+            KWin.readConfig("gridColumns", 4), KWin.readConfig("gridRows", 2),
+            KWin.readConfig("gridGap", 0), KWin.readConfig("subdivideZones", false));
+        if (loaded.error) errors = errors.concat(loaded.error);
+        const layouts = loaded.layouts;
 
         // load values from configuration
         config = {
             // enable zone selector
-            enableZoneSelector: KWin.readConfig("enableZoneSelector", false),
+            enableZoneSelector: false,
             // distance from the top of the screen to trigger the zone selector
-            zoneSelectorTriggerDistance: KWin.readConfig("zoneSelectorTriggerDistance", 1),
+            zoneSelectorTriggerDistance: 1,
             // enable zone overlay
-            enableZoneOverlay: KWin.readConfig("enableZoneOverlay", true),
+            enableZoneOverlay: true,
             // Ctrl+Shift-drag combines the zones crossed during a window move.
-            enableMultiZoneSelection: KWin.readConfig("enableMultiZoneSelection", true),
+            enableMultiZoneSelection: true,
             // show zone overlay when
-            zoneOverlayShowWhen: KWin.readConfig("zoneOverlayShowWhen", 2),
+            zoneOverlayShowWhen: 2,
             // highlight target zone
-            zoneOverlayHighlightTarget: KWin.readConfig("zoneOverlayHighlightTarget", 0),
+            zoneOverlayHighlightTarget: 0,
             // zone overlay indicator display
-            zoneOverlayIndicatorDisplay: KWin.readConfig("zoneOverlayIndicatorDisplay", 0),
+            zoneOverlayIndicatorDisplay: 0,
             // enable edge snapping
-            enableEdgeSnapping: KWin.readConfig("enableEdgeSnapping", false),
+            enableEdgeSnapping: false,
             // distance from the edge of the screen to trigger the edge snapping
-            edgeSnappingTriggerDistance: KWin.readConfig("edgeSnappingTriggerDistance", 1),
+            edgeSnappingTriggerDistance: 1,
             // remember window geometries before snapping to a zone, and restore them when the window is removed from their zone
-            rememberWindowGeometries: KWin.readConfig("rememberWindowGeometries", true),
+            rememberWindowGeometries: true,
             // track active layout per screen
-            trackLayoutPerScreen: KWin.readConfig("trackLayoutPerScreen", false),
+            trackLayoutPerScreen: false,
             // show osd messages
-            showOsdMessages: KWin.readConfig("showOsdMessages", true),
+            showOsdMessages: true,
             // fade windows while moving
-            fadeWindowsWhileMoving: KWin.readConfig("fadeWindowsWhileMoving", false),
+            fadeWindowsWhileMoving: false,
             // auto snap all windows
-            autoSnapAllNew: KWin.readConfig("autoSnapAllNew", false),
+            autoSnapAllNew: false,
             // layouts
             layouts: layouts,
             // filter mode
-            filterMode: KWin.readConfig("filterMode", 0),
+            filterMode: KWin.readConfig("filterMode", 1),
             // filter list
             filterList: KWin.readConfig("filterList", ""),
             // polling rate in milliseconds
-            pollingRate: KWin.readConfig("pollingRate", 100),
+            pollingRate: 100,
             // enable debug logging
             enableDebugLogging: KWin.readConfig("enableDebugLogging", false),
             // enable debug overlay
-            enableDebugOverlay: KWin.readConfig("enableDebugOverlay", false)
+            enableDebugOverlay: false
         };
 
         log("Config loaded: " + JSON.stringify(config));
@@ -711,7 +707,7 @@ PlasmaCore.Dialog {
         // refresh client area
         refreshClientArea();
         mainDialog.loadConfig();
-        console.info("KFancyZones 0.9.2.9 loaded: native=" + inputState.available
+        console.info("KFancyZones 0.9.2.10 loaded: native=" + inputState.available
             + ", mode=" + config.zoneOverlayShowWhen + ", zones=" + config.layouts[0].zones.length);
 
         // match all clients to zones and connect signals

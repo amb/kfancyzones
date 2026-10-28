@@ -41,13 +41,11 @@ test('Ctrl without Shift does not accumulate and releasing Ctrl restores single-
     assert.deepEqual(plain(c.highlightedZones), [2]);
 });
 
-test('disabling the feature or an unavailable native backend leaves single-zone operation', () => {
-    for (const unavailable of [false,true]) {
-        const c = createContext({enableMultiZoneSelection: unavailable});
-        c.inputState.available = !unavailable;
-        hold(c); c.updateZoneSelection(0); c.updateZoneSelection(1);
-        assert.deepEqual(plain(c.highlightedZones), [1]);
-    }
+test('an unavailable native backend never accumulates zones', () => {
+    const c = createContext();
+    c.inputState.available = false;
+    hold(c); c.updateZoneSelection(0); c.updateZoneSelection(1);
+    assert.deepEqual(plain(c.highlightedZones), [1]);
 });
 
 test('Escape cancellation does not change window geometry or metadata', () => {

@@ -5,6 +5,10 @@
     property bool integrationKeepAbove: false
     property var integrationOriginal: null
     property var integrationFreeGeometry: null
+    property bool integrationSubdivide: false
+    property int integrationCellWidth: integrationSubdivide ? 240 : 480
+    property int integrationCellHeight: integrationSubdivide ? 270 : 540
+    property int integrationNextX: integrationSubdivide ? 350 : 600
     property int integrationStep: 0
     function integrationAssert(condition, message) {
         if (!condition) throw new Error(message);
@@ -24,7 +28,7 @@
                     if (!integrationNeighbor) return;
                     integrationKeepAbove = integrationWindow.keepAbove;
                     integrationAssert(inputState.available, "native input backend unavailable");
-                    integrationAssert(config.layouts[0].zones.length === 8, "default is not 4x2");
+                    integrationAssert(config.layouts[0].zones.length === (integrationSubdivide ? 32 : 8), "configured grid size is wrong");
                     integrationAssert(!config.enableZoneSelector, "fresh install enables the mini-grid selector");
                     integrationOriginal = integrationWindow.frameGeometry;
                     Workspace.activeWindow = integrationWindow;
@@ -41,21 +45,21 @@
                     break;
                 case 2:
                     integrationAssert(shiftDrag, "Shift state did not reach QML");
-                    integrationAssert(snapPreview.visible && snapPreview.width === 480, "single-zone final rectangle is missing");
+                    integrationAssert(snapPreview.visible && snapPreview.width === integrationCellWidth, "single-zone final rectangle is missing");
                     integrationAssert((inputState.modifiers & Qt.ControlModifier) !== 0, "Ctrl state did not reach QML");
                     integrationAssert(overlayWindow !== null, "overlay window not found for stacking");
                     integrationAssert(Workspace.stackingOrder.indexOf(w) > Workspace.stackingOrder.indexOf(overlayWindow), "dragged window is below painted rectangles");
                     integrationAssert(Workspace.stackingOrder.indexOf(integrationNeighbor) < Workspace.stackingOrder.indexOf(overlayWindow), "overlay is below the rest of the desktop");
                     integrationAssert(w.keepAbove === integrationKeepAbove, "always-on-top setting was changed");
-                    testInput.pointer(600,100);
+                    testInput.pointer(integrationNextX,100);
                     break;
                 case 3:
                     console.info("KFANCYZONES_NATIVE_OUTLINE_SHOWS: " + testInput.outlineShows);
                     integrationAssert(testInput.outlineShows === 0, "native tile preview was created during zone selection");
                     integrationAssert(highlightedZones.includes(0) && highlightedZones.includes(1), "multi-zone preview did not expand");
-                    integrationAssert(selectionGeometry.width === 960, "combined preview width is incorrect: "
+                    integrationAssert(selectionGeometry.width === integrationCellWidth * 2, "combined preview width is incorrect: "
                         + JSON.stringify({geometry:selectionGeometry,zones:highlightedZones,area:clientArea,cursor:Workspace.cursorPos}));
-                    integrationAssert(snapPreview.visible && snapPreview.width === 960 && snapPreview.height === 540, "final rectangle does not match the combined snap area");
+                    integrationAssert(snapPreview.visible && snapPreview.width === integrationCellWidth * 2 && snapPreview.height === integrationCellHeight, "final rectangle does not match the combined snap area");
                     integrationAssert(snapPreview.color.a > 0 && Qt.colorEqual(snapPreview.border.color,"#69db8f"), "final rectangle is not filled green");
                     const zoneItems = repeaterLayout.itemAt(currentLayout).repeater;
                     integrationAssert(!zoneItems.itemAt(0).visible && !zoneItems.itemAt(1).visible, "covered gray outlines remain visible");
@@ -65,8 +69,8 @@
                 case 4:
                     integrationAssert(stackedClient === null && stackedOverlay === null, "stacking constraint remains after drop");
                     integrationAssert(w.tile === null, "window remains linked to a native tile");
-                    integrationAssert(Math.abs(w.frameGeometry.width - 960) <= 1, "combined drop width is incorrect: " + JSON.stringify(w.frameGeometry));
-                    integrationAssert(Math.abs(w.frameGeometry.height - 540) <= 1, "combined drop height is incorrect");
+                    integrationAssert(Math.abs(w.frameGeometry.width - integrationCellWidth * 2) <= 1, "combined drop width is incorrect: " + JSON.stringify(w.frameGeometry));
+                    integrationAssert(Math.abs(w.frameGeometry.height - integrationCellHeight) <= 1, "combined drop height is incorrect");
                     integrationAssert(w.oldGeometry.width === integrationOriginal.width, "restore geometry was overwritten by native tiling");
                     testInput.key(29,false);
                     testInput.key(42,false);
@@ -80,7 +84,7 @@
                     testInput.key(29,true);
                     break;
                 case 6:
-                    testInput.pointer(600,100);
+                    testInput.pointer(integrationNextX,100);
                     break;
                 case 7:
                     testInput.key(29,false);
@@ -92,7 +96,7 @@
                 case 9:
                     integrationAssert(!w.move && !moving, "Escape did not finish the move");
                     integrationAssert(w.tile === null, "Escape attached a native tile");
-                    integrationAssert(Math.abs(w.frameGeometry.width - 960) <= 1, "Escape did not restore original geometry");
+                    integrationAssert(Math.abs(w.frameGeometry.width - integrationCellWidth * 2) <= 1, "Escape did not restore original geometry");
                     testInput.key(1,false);
                     testInput.key(42,false);
                     testInput.button(false);
@@ -110,16 +114,16 @@
                     break;
                 case 12:
                     integrationAssert(highlightedZones.length === 1 && highlightedZones[0] === 0, "selection leaked across outputs");
-                    testInput.pointer(2520,100);
+                    testInput.pointer(1920 + integrationNextX,100);
                     break;
                 case 13:
-                    integrationAssert(selectionGeometry.x === 1920 && selectionGeometry.width === 960, "secondary monitor preview geometry is wrong");
+                    integrationAssert(selectionGeometry.x === 1920 && selectionGeometry.width === integrationCellWidth * 2, "secondary monitor preview geometry is wrong");
                     integrationAssert(mainDialog.x === Workspace.virtualScreenGeometry.x, "overlay is not aligned to virtual desktop");
                     testInput.button(false);
                     break;
                 case 14:
                     integrationAssert(w.tile === null, "secondary monitor drop is tiled");
-                    integrationAssert(Math.abs(w.frameGeometry.x - 1920) <= 1 && Math.abs(w.frameGeometry.width - 960) <= 1, "secondary monitor drop has incorrect coordinates");
+                    integrationAssert(Math.abs(w.frameGeometry.x - 1920) <= 1 && Math.abs(w.frameGeometry.width - integrationCellWidth * 2) <= 1, "secondary monitor drop has incorrect coordinates");
                     testInput.key(29,false);
                     testInput.key(42,false);
                     testInput.pointer(2020,100);
@@ -132,7 +136,7 @@
                     testInput.key(29,true);
                     break;
                 case 16:
-                    testInput.pointer(2520,100);
+                    testInput.pointer(1920 + integrationNextX,100);
                     break;
                 case 17:
                     integrationAssert(highlightedZones.length === 2, "selection did not accumulate before cancellation");

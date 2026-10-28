@@ -18,10 +18,9 @@ test('fresh defaults use Shift-drag, eight zones, and no mini-grid selector', ()
         });
     }
     const xml = fs.readFileSync(path.join(root, 'src/contents/config/main.xml'), 'utf8');
-    assert.match(xml, /<entry name="enableZoneSelector"[^]*?<default>false<\/default>/);
-    const encoded = xml.match(/<entry name="layoutsJson"[^]*?<default>([^]*?)<\/default>/)[1];
-    const decoded = encoded.replaceAll('&quot;', '"').replaceAll('&amp;', '&');
-    assert.deepEqual(JSON.parse(decoded), plain(c.config.layouts));
+    assert.match(xml, /<entry name="gridColumns"[^]*?<default>4<\/default>/);
+    assert.match(xml, /<entry name="gridRows"[^]*?<default>2<\/default>/);
+    assert.match(xml, /<entry name="subdivideZones"[^]*?<default>false<\/default>/);
 });
 
 test('holding Ctrl+Shift accumulates visited zones and does not duplicate them', () => {

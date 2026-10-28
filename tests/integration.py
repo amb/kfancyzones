@@ -62,14 +62,19 @@ def run():
         main = package / "contents" / entry
         text = main.read_text().replace('import "moveinput" as Native',
                                        'import "moveinput" as Native\nimport "testnative" as TestNative')
-        text = text[:text.rfind("}")] + (ROOT / "tests/integration.qml.inc").read_text() + "\n}\n"
+        subdivide = os.environ.get("KFANCYZONES_TEST_SUBDIVIDE") == "1"
+        fixture = (ROOT / "tests/integration.qml.inc").read_text()
+        if subdivide:
+            fixture = fixture.replace("integrationSubdivide: false", "integrationSubdivide: true")
+        text = text[:text.rfind("}")] + fixture + "\n}\n"
         main.write_text(text)
         # KWin's package structure can still select ui/main.qml regardless of
         # X-Plasma-MainScript; instrument the canonical entry point as well.
         (package / "contents/ui/main.qml").write_text(text)
         (base / "config/kwinrc").write_text("[Plugins]\nkfancyzonesEnabled=true\n"
                                            "[Script-kfancyzones]\n"
-                                           "enableDebugLogging=true\n")
+                                           "enableDebugLogging=true\n"
+                                           + ("subdivideZones=true\n" if subdivide else ""))
         client = ROOT / "build/native/kfancyzones-test-client"
         command = ["kwin_wayland", "--virtual", "--width", "1920", "--height", "1080",
                    "--output-count", "2", "--no-lockscreen", "--no-global-shortcuts", "--no-kactivities", str(client)]
@@ -92,7 +97,7 @@ def run():
                                        env=env, check=True, stdout=subprocess.DEVNULL)
                         reloaded = True
                     if passes >= 2:
-                        print("Virtual KWin integration: PASS (two outputs, Ctrl+Shift, bounding preview, "
+                        print(f"Virtual KWin integration: PASS ({'8x4' if subdivide else '4x2'}, two outputs, Ctrl+Shift, bounding preview, "
                               "mouse-first acceptance, Shift-first cancellation, detachment, Ctrl release, Escape, hot reload)")
                         return 0
                     if ("KFANCYZONES_INTEGRATION: FAIL" in output or "Component failed to load" in output

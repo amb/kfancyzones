@@ -3,7 +3,7 @@
 FancyZones-style window snapping for KDE Plasma, forked from
 [KZones](https://github.com/gerritdevriese/kzones).
 
-**Experimental MVP · version 0.9.2.9 · tested on KWin 6.6.6, Wayland,
+**Experimental MVP · version 0.9.2.10 · tested on KWin 6.6.6, Wayland,
 Kubuntu 26.04.** Other KWin versions and X11 have not been verified.
 The native helper builds against KWin's development API: build it on the target
 system and rebuild after KWin upgrades. This is a source-build project.
@@ -61,15 +61,24 @@ make uninstall
 
 ## Configuration
 
-Use the settings button next to **KFancyZones** in KWin Scripts. Existing saved
-layouts take precedence over the default 4×2 grid. Layouts are JSON arrays;
-[examples/simple.json](examples/simple.json) and
-[examples/advanced.json](examples/advanced.json) show the format. Zone positions
-and dimensions are percentages of the output; layout padding is in pixels.
+Use the settings button next to **KFancyZones** in KWin Scripts. The compact
+page offers **Columns**, **Rows**, and **Gap**, with a grid preview. Enable
+**Subdivide each zone into 2×2** to double the columns and rows: the default
+4×2 becomes **8×4**. Subdivision is off by default. Shift/Ctrl selection and
+release-order behavior stay the same at either grid size.
 
-The selection resets when switching output or layout. The optional upstream
-selector, automatic snapping, filters, and keyboard actions remain available.
-The gesture and overlay described above are the tested MVP workflow.
+**Advanced** contains optional custom layout JSON and application filters.
+Custom layouts override the grid controls and preserve their own padding;
+[examples/simple.json](examples/simple.json) and
+[examples/advanced.json](examples/advanced.json) show the format. Leave the JSON
+empty to use the regular grid. The old saved 4×2 default is recognized as a grid,
+so it does not block the new controls. Other saved custom layouts remain active.
+Invalid custom JSON falls back to the selected grid and records a diagnostic.
+
+Activation is always Shift-drag, Ctrl always combines zones, and restore-on-drag
+and independent resizing are standard behavior. The old selector, edge snapping,
+automatic snapping, fading, polling, and debug-overlay options are retired.
+The selection resets when switching output or layout.
 
 Keyboard actions appear under **KFancyZones** in System Settings → Shortcuts.
 Internal action IDs retain their `KZones:` prefix to preserve existing key
@@ -90,7 +99,7 @@ the isolated KWin integration test.
 make check
 ```
 
-The unit tests require Node.js 24 or newer. The integration suite checks actual
+The unit tests require Python 3 and Node.js 24 or newer. The integration suite checks actual
 Shift/Ctrl input, acceptance and cancellation order, multiple outputs, independent
 window geometry, overlay stacking, and suppression of the native preview.
 

@@ -15,3 +15,5 @@ KZones.kwinscript
 /src/LICENSE.md
 __pycache__/
 *.pyc
+
+/src/contents/ui/CompactSettingsOverlay.qml
