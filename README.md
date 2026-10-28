@@ -3,7 +3,7 @@
 FancyZones-style window snapping for KDE Plasma, forked from
 [KZones](https://github.com/gerritdevriese/kzones).
 
-**Experimental MVP · version 0.9.2.11 · tested on KWin 6.6.6, Wayland,
+**Experimental MVP · version 0.9.2.12 · tested on KWin 6.6.6, Wayland,
 Kubuntu 26.04.** Other KWin versions and X11 have not been verified.
 The native helper builds against KWin's development API: build it on the target
 system and rebuild after KWin upgrades. This is a source-build project.
@@ -21,7 +21,7 @@ The default layout is **four columns by two rows**, giving eight equal zones.
 
 Available zones have unfilled gray outlines. One translucent green rectangle
 shows the final window bounds; gray outlines covered by it are hidden. The
-window stays above the overlay. The old mini-grid selector is disabled by default.
+window stays above the overlay.
 Snapped windows resize independently because they are detached from native KWin
 custom tiles. KWin's competing Shift-drag preview is suppressed during selection.
 
@@ -30,7 +30,7 @@ custom tiles. KWin's competing Shift-drag preview is suppressed during selection
 Install the development dependencies yourself. On Kubuntu 26.04:
 
 ```sh
-sudo apt-get install --no-install-recommends kwin-dev extra-cmake-modules qt6-base-dev qt6-declarative-dev cmake g++ make zip kpackagetool6 qdbus-qt6 python3 qt6-tools-dev libkf6kcmutils-dev
+sudo apt-get install --no-install-recommends kwin-dev extra-cmake-modules qt6-base-dev qt6-declarative-dev cmake g++ make kpackagetool6 qdbus-qt6 python3 libkf6kcmutils-dev
 ```
 
 From this repository's root:
@@ -86,7 +86,7 @@ custom layout off restores your configured grid, including an 8×4 subdivision.
 
 Activation is always Shift-drag, Ctrl always combines zones, and restore-on-drag
 and independent resizing are standard behavior. The old selector, edge snapping,
-automatic snapping, fading, polling, and debug-overlay options are retired.
+automatic snapping, fading, and debug-overlay features have been removed.
 The selection resets when switching output or layout.
 
 Keyboard actions appear under **KFancyZones** in System Settings → Shortcuts.
@@ -101,14 +101,14 @@ group. Copy its settings to the new group with both scripts disabled if needed.
 
 ## Development and validation
 
-See [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) for native-helper details and
+See [DEVELOPMENT.md](DEVELOPMENT.md) for native-helper details and
 the isolated KWin integration test.
 
 ```sh
 make check
 ```
 
-The unit tests require Python 3 and Node.js 24 or newer. The integration suite checks actual
+The unit tests require Node.js 24 or newer. The integration suite checks actual
 Shift/Ctrl input, acceptance and cancellation order, multiple outputs, independent
 window geometry, overlay stacking, suppression of the native preview, live settings
 reload and custom-layout fallback.

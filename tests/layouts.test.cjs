@@ -45,7 +45,6 @@ test('invalid enabled custom layouts fall back to plain 4x2, regardless of grid 
         const c = createContext({useCustomLayout: true, layoutsJson: json, gridColumns: 2, gridRows: 1, gridGap: 12, subdivideZones: true});
         assert.equal(c.config.layouts[0].zones.length, 8);
         assert.equal(c.config.layouts[0].padding, 0);
-        assert.equal(c.errors.length, 1);
         assert.match(c.customLayoutError, /default 4×2/);
     }
 });
@@ -61,14 +60,16 @@ test('retired behavior settings cannot change the fixed Shift/Ctrl workflow', ()
         enableMultiZoneSelection: false, zoneOverlayShowWhen: 0,
         rememberWindowGeometries: false, fadeWindowsWhileMoving: true,
         autoSnapAllNew: true, pollingRate: 1000});
-    assert.equal(c.config.enableZoneSelector, false);
-    assert.equal(c.config.enableEdgeSnapping, false);
-    assert.equal(c.config.enableMultiZoneSelection, true);
-    assert.equal(c.config.zoneOverlayShowWhen, 2);
-    assert.equal(c.config.rememberWindowGeometries, true);
-    assert.equal(c.config.fadeWindowsWhileMoving, false);
-    assert.equal(c.config.autoSnapAllNew, false);
-    assert.equal(c.config.pollingRate, 100);
+    c.inputState.modifiers = c.Qt.ShiftModifier | c.Qt.ControlModifier;
+    assert.equal(c.zoneDragEnabled(), true);
+    c.updateZoneSelection(0); c.updateZoneSelection(1);
+    assert.deepEqual(plain(c.highlightedZones), [0, 1]);
+    c.inputState.modifiers = 0;
+    assert.equal(c.zoneDragEnabled(), false);
+    for (const key of ['enableZoneSelector', 'enableEdgeSnapping', 'enableMultiZoneSelection',
+        'zoneOverlayShowWhen', 'rememberWindowGeometries', 'fadeWindowsWhileMoving', 'autoSnapAllNew', 'pollingRate']) {
+        assert.equal(key in c.config, false);
+    }
 });
 
 test('disabled custom layout ignores stored invalid JSON and uses the subdivided grid', () => {

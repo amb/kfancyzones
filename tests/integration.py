@@ -2,6 +2,7 @@
 """Run the production script in a private, headless virtual KWin session."""
 import os
 import json
+import zipfile
 from pathlib import Path
 import shutil
 import signal
@@ -55,7 +56,17 @@ def run():
             env.pop(key, None)
 
         package = base / "data/kwin/scripts/kfancyzones"
-        shutil.copytree(ROOT / "src", package)
+        with zipfile.ZipFile(ROOT / "kfancyzones.kwinscript") as archive:
+            for name in archive.namelist():
+                if name.endswith("/"): continue
+                relative = Path(name).relative_to("src")
+                destination = package / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(archive.read(name))
+        metadata_path = package / "metadata.json"
+        metadata = json.loads(metadata_path.read_text())
+        metadata["X-KDE-ConfigModule"] = str(package / "contents/config" / Path(metadata["X-KDE-ConfigModule"]).name)
+        metadata_path.write_text(json.dumps(metadata))
         testnative = package / "contents/ui/testnative"
         shutil.copytree(ROOT / "build/native/testqml", testnative)
         entry = json.loads((package / "metadata.json").read_text())["X-Plasma-MainScript"]

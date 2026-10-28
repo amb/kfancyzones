@@ -14,7 +14,6 @@
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTest>
-#include <QUiLoader>
 #include <KCModule>
 #include <KConfig>
 #include <KConfigGroup>
@@ -30,21 +29,9 @@ int main(int argc, char **argv)
     qputenv("XDG_CONFIG_HOME", configPath.toUtf8());
     QApplication app(argc, argv);
     const auto fail = [](const char *message) { qCritical() << message; return 1; };
-    // The form must also hide headers without controller initialization, e.g.
-    // while System Settings is still holding an older module in its cache.
-    QFile formFile(QStringLiteral("src/contents/ui/config.ui"));
-    if (!formFile.open(QFile::ReadOnly)) return fail("Could not read form");
-    QUiLoader formLoader;
-    std::unique_ptr<QWidget> rawForm(formLoader.load(&formFile));
-    if (!rawForm) return fail("Could not load the raw form");
-    rawForm->show();
-    auto *rawGrid = rawForm->findChild<QTableWidget *>("layoutPreview");
-    if (!rawGrid || !rawGrid->horizontalHeader()->isHidden() || !rawGrid->verticalHeader()->isHidden())
-        return fail("Raw preview exposes numbered table headers");
-    rawForm->hide();
     const QString contents = temporary.path() + QStringLiteral("/package/contents");
-    for (const auto *directory : {"ui", "code", "config"}) QDir().mkpath(contents + '/' + directory);
-    for (const auto *relative : {"ui/config.ui", "code/configuration.js", "config/main.xml"}) {
+    for (const auto *directory : {"code", "config"}) QDir().mkpath(contents + '/' + directory);
+    for (const auto *relative : {"code/configuration.js", "config/main.xml"}) {
         if (!QFile::copy(QStringLiteral("src/contents/") + relative, contents + '/' + relative))
             return fail("Could not stage settings files");
     }
@@ -75,6 +62,8 @@ int main(int argc, char **argv)
     form->show();
     QTest::qWait(20);
     if (grid->columnCount() != 4 || grid->rowCount() != 2) return fail("Default preview is not 4x2");
+    if (!grid->horizontalHeader()->isHidden() || !grid->verticalHeader()->isHidden())
+        return fail("Default preview exposes numbered table headers");
     if (tabs->currentIndex() != 0 || advanced->isVisible()) return fail("Settings must start on Layout");
     subdivide->setChecked(true);
     if (grid->columnCount() != 8 || grid->rowCount() != 4) return fail("Subdivision preview is not 8x4");

@@ -1,7 +1,5 @@
 import QtQuick
-import QtQuick.Layouts
 import org.kde.kwin
-import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.core as PlasmaCore
 
 import "components" as Components
@@ -11,11 +9,6 @@ import "../code/configuration.js" as Layouts
 
 PlasmaCore.Dialog {
 
-    // api documentation
-    // https://api.kde.org/frameworks/plasma-framework/html/classPlasmaQuick_1_1Dialog.html
-    // https://api.kde.org/frameworks/plasma-framework/html/classPlasma_1_1Types.html
-    // https://develop.kde.org/docs/getting-started/kirigami/style-colors/
-
     id: mainDialog
 
     // properties
@@ -24,10 +17,8 @@ PlasmaCore.Dialog {
     property bool moved: false
     property bool resizing: false
     property var clientArea: ({})
-    property var cachedClientArea: ({})
     property var displaySize: ({})
     property int currentLayout: 0
-    property var screenLayouts: ({})
     property int highlightedZone: -1
     property var zoneSelection: ({context: "", zones: [], hovered: -1, extending: false})
     property var highlightedZones: Selection.selected(zoneSelection)
@@ -39,12 +30,9 @@ PlasmaCore.Dialog {
     property var overlayWindow: null
     property var stackedOverlay: null
     property var stackedClient: null
-    property bool shiftDrag: config.enableZoneOverlay
-        && inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0
+    property bool shiftDrag: inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0
     property var activeScreen: null
     property var config: ({})
-    property bool showZoneOverlay: config.zoneOverlayShowWhen == 0
-    property var errors: []
     property bool configurationReady: false
     property bool configurationPending: false
     property string customLayoutError: ""
@@ -69,51 +57,13 @@ PlasmaCore.Dialog {
             read("gridColumns", 4), read("gridRows", 2),
             read("gridGap", 0), read("subdivideZones", false), read("useCustomLayout", false));
         customLayoutError = loaded.error;
-        errors = loaded.error ? [loaded.error] : [];
         const layouts = loaded.layouts;
 
-        // load values from configuration
         config = {
-            // enable zone selector
-            enableZoneSelector: false,
-            // distance from the top of the screen to trigger the zone selector
-            zoneSelectorTriggerDistance: 1,
-            // enable zone overlay
-            enableZoneOverlay: true,
-            // Ctrl+Shift-drag combines the zones crossed during a window move.
-            enableMultiZoneSelection: true,
-            // show zone overlay when
-            zoneOverlayShowWhen: 2,
-            // highlight target zone
-            zoneOverlayHighlightTarget: 0,
-            // zone overlay indicator display
-            zoneOverlayIndicatorDisplay: 0,
-            // enable edge snapping
-            enableEdgeSnapping: false,
-            // distance from the edge of the screen to trigger the edge snapping
-            edgeSnappingTriggerDistance: 1,
-            // remember window geometries before snapping to a zone, and restore them when the window is removed from their zone
-            rememberWindowGeometries: true,
-            // track active layout per screen
-            trackLayoutPerScreen: false,
-            // show osd messages
-            showOsdMessages: true,
-            // fade windows while moving
-            fadeWindowsWhileMoving: false,
-            // auto snap all windows
-            autoSnapAllNew: false,
-            // layouts
             layouts: layouts,
-            // filter mode
             filterMode: read("filterMode", 1),
-            // filter list
             filterList: read("filterList", ""),
-            // polling rate in milliseconds
-            pollingRate: 100,
-            // enable debug logging
-            enableDebugLogging: read("enableDebugLogging", false),
-            // enable debug overlay
-            enableDebugOverlay: false
+            enableDebugLogging: read("enableDebugLogging", false)
         };
 
         log("Config loaded: " + JSON.stringify(config));
@@ -127,7 +77,6 @@ PlasmaCore.Dialog {
         }
         configurationPending = false;
         currentLayout = 0;
-        screenLayouts = {};
         resetZoneSelection();
         loadConfig();
         // Keep geometry unchanged; discard associations with the old layout.
@@ -147,7 +96,6 @@ PlasmaCore.Dialog {
     }
 
     function show() {
-        // show OSD
         mainDialog.shown = true;
         mainDialog.visible = zoneDragEnabled();
         mainDialog.setWidth(Workspace.virtualScreenSize.width);
@@ -159,35 +107,16 @@ PlasmaCore.Dialog {
 
     function hide() {
         releaseOverlayStacking();
-        // hide OSD
         mainDialog.shown = false;
         mainDialog.visible = false;
-        zoneSelector.expanded = false;
-        zoneSelector.near = false;
         highlightedZone = -1;
         resetZoneSelection();
-        showZoneOverlay = config.zoneOverlayShowWhen == 0;
     }
 
     function refreshClientArea() {
         activeScreen = moving ? Workspace.screenAt(Workspace.cursorPos) : Workspace.activeScreen;
         clientArea = Workspace.clientArea(KWin.FullScreenArea, activeScreen, Workspace.currentDesktop);
         displaySize = Workspace.virtualScreenSize;
-        currentLayout = getCurrentLayout();
-    }
-
-    function isPointInside(x, y, geometry) {
-        return x >= geometry.x && x <= geometry.x + geometry.width && y >= geometry.y && y <= geometry.y + geometry.height;
-    }
-
-    function isHovering(item) {
-        const itemGlobal = item.mapToGlobal(Qt.point(0, 0));
-        return isPointInside(Workspace.cursorPos.x, Workspace.cursorPos.y, {
-            x: itemGlobal.x,
-            y: itemGlobal.y,
-            width: item.width * item.scale,
-            height: item.height * item.scale
-        });
     }
 
     function resetZoneSelection() {
@@ -217,13 +146,14 @@ PlasmaCore.Dialog {
     }
 
     function zoneDragEnabled() {
-        return config.zoneOverlayShowWhen !== 2
-            || (inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0);
+        // Modifier signals can run before the shiftDrag binding refreshes.
+        // Read raw state so Shift-up cancels synchronously in that signal.
+        return inputState.available && (inputState.modifiers & Qt.ShiftModifier) !== 0;
     }
 
     function updateZoneSelection(zone) {
         const context = activeScreen.name + ":" + currentLayout;
-        const extend = config.enableMultiZoneSelection && shiftDrag
+        const extend = shiftDrag
             && (inputState.modifiers & Qt.ControlModifier) !== 0;
         zoneSelection = Selection.update(zoneSelection, zone, context, extend);
         highlightedZone = zone;
@@ -243,13 +173,9 @@ PlasmaCore.Dialog {
         mainDialog.visible = shown;
         updateOverlayStacking();
         refreshClientArea();
-        // Sample directly on modifier changes and drop, not just at the polling interval.
-        if (shiftDrag && !zoneSelector.expanded) {
-            updateZoneSelection(Selection.zoneAt(config.layouts[currentLayout], clientArea, Workspace.cursorPos));
-            Workspace.hideOutline();
-        } else {
-            updateZoneSelection(highlightedZone);
-        }
+        // Sample on modifier changes and drop, as well as pointer motion.
+        updateZoneSelection(Selection.zoneAt(config.layouts[currentLayout], clientArea, Workspace.cursorPos));
+        Workspace.hideOutline();
     }
 
     function checkFilter(client) {
@@ -307,7 +233,6 @@ PlasmaCore.Dialog {
         const clientsInZone = getWindowsInZone(zone, layout);
         if (reverse) clientsInZone.reverse();
 
-
         // cycle through clients in zone
         if (clientsInZone.length > 0) {
             const index = clientsInZone.indexOf(Workspace.activeWindow);
@@ -350,7 +275,7 @@ PlasmaCore.Dialog {
             // Save the geometry captured before the drag instead of that tile.
             const wasUnsnapped = client.zone == null || client.zone === -1;
             moveClientToZones(client, zones);
-            if (config.rememberWindowGeometries && dragOriginalGeometry && wasUnsnapped) {
+            if (dragOriginalGeometry && wasUnsnapped) {
                 client.oldGeometry = dragOriginalGeometry;
             }
         } else {
@@ -373,24 +298,12 @@ PlasmaCore.Dialog {
     }
 
     function saveClientProperties(client, zone) {
-        log("Saving geometry for client " + client.resourceClass.toString());
-
-        // save current geometry
-        if (config.rememberWindowGeometries) {
-            const geometry = {
-                "x": client.frameGeometry.x,
-                "y": client.frameGeometry.y,
-                "width": client.frameGeometry.width,
-                "height": client.frameGeometry.height
+        if (zone !== -1 && (client.zone == null || client.zone === -1)) {
+            client.oldGeometry = {
+                x: client.frameGeometry.x, y: client.frameGeometry.y,
+                width: client.frameGeometry.width, height: client.frameGeometry.height
             };
-            if (zone != -1) {
-                if (client.zone == null || client.zone === -1) {
-                    client.oldGeometry = geometry;
-                }
-            }
         }
-
-        // save zone
         client.zone = zone;
         client.zones = zone === -1 ? [] : [zone];
         client.layout = currentLayout;
@@ -580,7 +493,7 @@ PlasmaCore.Dialog {
         }
         if (targetZoneIndex !== -1) {
             moveClientToZone(client, targetZoneIndex);
-        } else if(!config.trackLayoutPerScreen) {
+        } else {
             const toScreenMap = {
                 left: "slotWindowToPrevScreen",
                 right: "slotWindowToNextScreen",
@@ -597,21 +510,8 @@ PlasmaCore.Dialog {
         return targetZoneIndex;
     }
 
-    function getCurrentLayout() {
-        if (config.trackLayoutPerScreen) {
-            const screenLayout = screenLayouts[Workspace.activeScreen.name]
-            if (!screenLayout) {
-                screenLayouts[Workspace.activeScreen.name] = 0
-            }
-            return screenLayouts[Workspace.activeScreen.name];
-        } else {
-            return currentLayout;
-        }
-    }
-
     function setCurrentLayout(layout) {
-        if (config.trackLayoutPerScreen) screenLayouts[Workspace.activeScreen.name] = layout
-        currentLayout = layout
+        currentLayout = layout;
     }
 
     function connectSignals(client) {
@@ -619,14 +519,10 @@ PlasmaCore.Dialog {
         windowConnections.createObject(mainItem, {target: client});
     }
 
-    Components.ColorHelper {
-        id: colorHelper
-    }
-
     property Native.InputState modifierState: Native.InputState {
         id: inputState
         window: mainDialog.draggedWindow
-        suppressNativeTiling: mainDialog.moving && config.enableZoneOverlay
+        suppressNativeTiling: mainDialog.moving
         onConfigurationChanged: mainDialog.applyConfiguration()
         onModifiersChanged: {
             // Clear selection synchronously on Shift-up; refresh once more after
@@ -648,14 +544,14 @@ PlasmaCore.Dialog {
             resetZoneSelection();
             setCurrentLayout((currentLayout + 1) % config.layouts.length);
             highlightedZone = -1;
-            osdDbus.exec(config.trackLayoutPerScreen ? `${config.layouts[currentLayout].name} (${Workspace.activeScreen.name})` : config.layouts[currentLayout].name);
+            osdDbus.exec(config.layouts[currentLayout].name);
         }
 
         onCycleLayoutsReversed: {
             resetZoneSelection();
             setCurrentLayout((currentLayout - 1 + config.layouts.length) % config.layouts.length);
             highlightedZone = -1;
-            osdDbus.exec(config.trackLayoutPerScreen ? `${config.layouts[currentLayout].name} (${Workspace.activeScreen.name})` : config.layouts[currentLayout].name);
+            osdDbus.exec(config.layouts[currentLayout].name);
         }
 
         onMoveActiveWindowToNextZone: {
@@ -670,18 +566,6 @@ PlasmaCore.Dialog {
             if (client.zone == -1) moveClientToClosestZone(client);
             const zonesLength = config.layouts[currentLayout].zones.length;
             moveClientToZone(client, (client.zone - 1 + zonesLength) % zonesLength);
-        }
-
-        onToggleZoneOverlay: {
-            if (!config.enableZoneOverlay) {
-                osdDbus.exec("Zone overlay is disabled");
-            }
-            else if (moving) {
-                showZoneOverlay = !showZoneOverlay;
-            }
-            else {
-                osdDbus.exec("The overlay can only be shown while moving a window");
-            }
         }
 
         onSwitchToNextWindowInCurrentZone: {
@@ -701,7 +585,7 @@ PlasmaCore.Dialog {
             if (layout <= config.layouts.length - 1) {
                 setCurrentLayout(layout);
                 highlightedZone = -1;
-                osdDbus.exec(config.trackLayoutPerScreen ? `${config.layouts[currentLayout].name} (${Workspace.activeScreen.name})` : config.layouts[currentLayout].name);
+                osdDbus.exec(config.layouts[currentLayout].name);
             } else {
                 osdDbus.exec(`Layout ${layout + 1} does not exist`);
             }
@@ -737,8 +621,8 @@ PlasmaCore.Dialog {
         refreshClientArea();
         mainDialog.loadConfig();
         configurationReady = true;
-        console.info("KFancyZones 0.9.2.11 loaded: native=" + inputState.available
-            + ", mode=" + config.zoneOverlayShowWhen + ", zones=" + config.layouts[0].zones.length);
+        console.info("KFancyZones 0.9.2.12 loaded: native=" + inputState.available
+            + ", zones=" + config.layouts[0].zones.length);
 
         // match all clients to zones and connect signals
         for (let i = 0; i < Workspace.stackingOrder.length; i++) {
@@ -774,26 +658,13 @@ PlasmaCore.Dialog {
                                 width: client.frameGeometry.width, height: client.frameGeometry.height
                             };
                             dragOriginalTile = client.tile;
-                            cachedClientArea = clientArea;
 
-                            if (config.fadeWindowsWhileMoving) {
-                                for (let i = 0; i < Workspace.stackingOrder.length; i++) {
-                                    const client = Workspace.stackingOrder[i];
-                                    client.previousOpacity = client.opacity;
-                                    if (client.move ||!client.normalWindow) continue;
-                                    client.opacity = 0.5;
-                                }
-                            }
-
-                            if (config.rememberWindowGeometries && client.zone != -1) {
-                                if (client.oldGeometry) {
-                                    const geometry = client.oldGeometry;
-                                    const zone = config.layouts[client.layout].zones[client.zone];
-                                    const zoneCenterX = (zone.x + zone.width / 2) / 100 * cachedClientArea.width + cachedClientArea.x;
-                                    const zoneX = ((zone.x / 100) * cachedClientArea.width + cachedClientArea.x);
-                                    const newGeometry = Qt.rect(Math.round(Workspace.cursorPos.x - geometry.width / 2), Math.round(client.frameGeometry.y), Math.round(geometry.width), Math.round(geometry.height));
-                                    client.frameGeometry = newGeometry;
-                                }
+                            if (client.zone !== -1 && client.oldGeometry) {
+                                const geometry = client.oldGeometry;
+                                client.frameGeometry = Qt.rect(
+                                    Math.round(Workspace.cursorPos.x - geometry.width / 2),
+                                    Math.round(client.frameGeometry.y),
+                                    Math.round(geometry.width), Math.round(geometry.height));
                             }
 
                             moving = true;
@@ -823,13 +694,6 @@ PlasmaCore.Dialog {
                 function onInteractiveMoveResizeFinished() {
                     log("Interactive move/resize finished for client " + client.resourceClass.toString());
 
-                    if (config.fadeWindowsWhileMoving) {
-                        for (let i = 0; i < Workspace.stackingOrder.length; i++) {
-                            const client = Workspace.stackingOrder[i];
-                            client.opacity = client.previousOpacity || 1;
-                        }
-                    }
-
                     if (moving) {
                         log("Move end " + client.resourceClass.toString());
                         if (dragCancelled) cancelZoneDrop(client);
@@ -855,25 +719,16 @@ PlasmaCore.Dialog {
                     if (configurationPending) Qt.callLater(applyConfiguration);
                 }
 
-                // fix from https://github.com/gerritdevriese/kzones/pull/25
+                // Preserve optional custom-layout fullscreen placement.
                 function onFullScreenChanged() {
-                    log("Client fullscreen: " + client.resourceClass.toString() + " (fullscreen " + client.fullScreen + ")");
-                    if(client.fullScreen == true) {
-                        log("onFullscreenChanged: Client zone: " + client.zone + " layout: " + client.layout);
-                        if (client.zone != -1 && client.layout != -1) {
-                            //check if fullscreen is enabled for layout or for zone
-                            const layout = config.layouts[client.layout];
-                            const zone = layout.zones[client.zone];
-                            log("Layout.fullscreen: " + layout.fullscreen + " Zone.fullscreen: " + zone.fullscreen);
-                            if(layout.fullscreen == true || zone.fullscreen == true) {
-                                const currentZones = repeaterLayout.itemAt(client.layout)
-                                const zoneItem = currentZones.repeater.itemAt(client.zone);
-                                const itemGlobal = zoneItem.mapToGlobal(Qt.point(0, 0));
-                                const newGeometry = Qt.rect(Math.round(itemGlobal.x), Math.round(itemGlobal.y), Math.round(zoneItem.width), Math.round(zoneItem.height));
-                                log("Fullscreen client " + client.resourceClass.toString() + " to zone " + client.zone + " with geometry " + JSON.stringify(newGeometry));
-                                client.setMaximize(false, false);
-                                client.frameGeometry = newGeometry;
-                            }
+                    const layout = config.layouts[client.layout];
+                    const zone = layout?.zones[client.zone];
+                    if (client.fullScreen && (layout?.fullscreen === true || zone?.fullscreen === true)) {
+                        refreshClientArea();
+                        const geometry = Selection.zoneGeometry(layout, clientArea, client.zone);
+                        if (geometry) {
+                            client.setMaximize(false, false);
+                            client.frameGeometry = Qt.rect(geometry.x, geometry.y, geometry.width, geometry.height);
                         }
                     }
                     mainDialog.hide();
@@ -882,96 +737,12 @@ PlasmaCore.Dialog {
             }
         }
 
-        // main polling timer
         Timer {
-            id: timer
-
-            triggeredOnStart: true
-            interval: config.pollingRate
+            interval: 100
             running: shown && moving
             repeat: true
-
-            onTriggered: {
-                if (dragCancelled) return;
-                if (!zoneDragEnabled()) {
-                    updateShiftSelection();
-                    return;
-                }
-                refreshClientArea();
-
-                let hoveringZone = -1;
-
-                // zone overlay
-                const currentZones = repeaterLayout.itemAt(currentLayout)
-                if (config.enableZoneOverlay && (showZoneOverlay || shiftDrag) && !zoneSelector.expanded) {
-                    currentZones.repeater.model.forEach((zone, zoneIndex) => {
-                        if (isHovering(currentZones.repeater.itemAt(zoneIndex))) {
-                            hoveringZone = zoneIndex;
-                        }
-                    });
-                }
-
-                // Modifier dragging uses the whole zone as its drop target.
-                if (shiftDrag && !zoneSelector.expanded) {
-                    hoveringZone = Selection.zoneAt(config.layouts[currentLayout], clientArea, Workspace.cursorPos);
-                }
-
-                // zone selector
-                if (config.enableZoneSelector) {
-                    if (!zoneSelector.animating && zoneSelector.expanded) {
-                        zoneSelector.repeater.model.forEach((layout, layoutIndex) => {
-                            const layoutItem = zoneSelector.repeater.itemAt(layoutIndex);
-                            layout.zones.forEach((zone, zoneIndex) => {
-                                const zoneItem = layoutItem.children[zoneIndex];
-                                if (isHovering(zoneItem)) {
-                                    hoveringZone = zoneIndex;
-                                    setCurrentLayout(layoutIndex);
-                                }
-                            });
-                        });
-                    }
-                    // set zoneSelector expansion state
-                    zoneSelector.expanded = isHovering(zoneSelector) && (Workspace.cursorPos.y - clientArea.y) >= 0;
-                    // set zoneSelector near state
-                    const triggerDistance = config.zoneSelectorTriggerDistance * 50 + 25;
-                    zoneSelector.near = (Workspace.cursorPos.y - clientArea.y) < zoneSelector.y + zoneSelector.height + triggerDistance;
-                }
-
-                // edge snapping
-                if (config.enableEdgeSnapping) {
-                    const triggerDistance = (config.edgeSnappingTriggerDistance + 1) * 10;
-                    if (Workspace.cursorPos.x <= clientArea.x + triggerDistance || Workspace.cursorPos.x >= clientArea.x + clientArea.width - triggerDistance || Workspace.cursorPos.y <= clientArea.y + triggerDistance || Workspace.cursorPos.y >= clientArea.y + clientArea.height - triggerDistance) {
-                        const padding = config.layouts[currentLayout].padding || 0;
-                        const halfPadding = padding/2;
-                        currentZones.repeater.model.forEach((zone, zoneIndex) => {
-                            const zoneItem = currentZones.repeater.itemAt(zoneIndex);
-                            const itemGlobal = zoneItem.mapToGlobal(Qt.point(0, 0));
-                            let zoneGeometry = {
-                                x: itemGlobal.x - padding/2,
-                                y: itemGlobal.y - padding/2,
-                                width: zoneItem.width + padding,
-                                height: zoneItem.height + padding
-                             };
-                            if(zoneGeometry.x <= halfPadding ) { zoneGeometry.x = 0; zoneGeometry.width += padding; }   //adjust most left edge
-                            if(zoneGeometry.y <= halfPadding ) { zoneGeometry.y = 0; zoneGeometry.height += padding; }  //adjust most top edge
-                            if(zoneGeometry.x + zoneGeometry.width >= clientArea.width - halfPadding ) {                //adjust most right edge
-                                  zoneGeometry.width += halfPadding;
-                            }
-                            if(zoneGeometry.y + zoneGeometry.height >= clientArea.height - halfPadding ) {              //adjust most bottom edge
-                                zoneGeometry.height += halfPadding;
-                            }
-                            if (isPointInside(Workspace.cursorPos.x, Workspace.cursorPos.y, zoneGeometry)) {
-                                hoveringZone = zoneIndex;
-                            }
-                        });
-                    }
-                }
-
-                // if hovering zone changed from the last frame
-                updateZoneSelection(hoveringZone);
-                if (shiftDrag) Workspace.hideOutline();
-
-            }
+            triggeredOnStart: true
+            onTriggered: mainDialog.updateShiftSelection()
         }
 
         DBusCall {
@@ -982,7 +753,6 @@ PlasmaCore.Dialog {
             method: "showText"
 
             function exec(text, icon = "preferences-desktop-virtual") {
-                if (!config.showOsdMessages) return;
                 this.arguments = [icon, text];
                 this.call();
             }
@@ -995,29 +765,25 @@ PlasmaCore.Dialog {
             height: clientArea.height || 0
             clip: true
 
-            Components.Debug {
-                info: ({
-                    activeWindow: {
-                        caption: Workspace.activeWindow?.caption,
-                        resourceClass: Workspace.activeWindow?.resourceClass?.toString(),
-                        frameGeometry: {
-                            x: Workspace.activeWindow?.frameGeometry?.x,
-                            y: Workspace.activeWindow?.frameGeometry?.y,
-                            width: Workspace.activeWindow?.frameGeometry?.width,
-                            height: Workspace.activeWindow?.frameGeometry?.height
-                        },
-                        zone: Workspace.activeWindow?.zone
-                    },
-                    highlightedZone: highlightedZone,
-                    moving: moving,
-                    resizing: resizing,
-                    oldGeometry: Workspace.activeWindow?.oldGeometry,
-                    activeScreen: activeScreen?.name,
-                    currentLayout: currentLayout,
-                    screenLayouts: screenLayouts
-                })
-                errors: mainDialog.errors
-                config: mainDialog.config
+            Rectangle {
+                visible: customLayoutError.length > 0
+                x: 20
+                y: 20
+                z: 100
+                width: Math.min(700, parent.width - 40)
+                height: warningText.implicitHeight + 24
+                color: "#dd202020"
+                radius: 5
+                Text {
+                    id: warningText
+                    x: 12
+                    y: 12
+                    width: parent.width - 24
+                    text: customLayoutError
+                    textFormat: Text.PlainText
+                    color: "#ff6b6b"
+                    wrapMode: Text.Wrap
+                }
             }
 
             Repeater {
@@ -1048,12 +814,6 @@ PlasmaCore.Dialog {
                 radius: 8
             }
 
-            Components.Selector {
-                id: zoneSelector
-                config: mainDialog.config
-                currentLayout: mainDialog.currentLayout
-                highlightedZone: mainDialog.highlightedZone
-            }
         }
 
         // workspace connection
@@ -1077,11 +837,6 @@ PlasmaCore.Dialog {
                     }
                 });
 
-                // auto snap to closest zone
-                if (config.autoSnapAllNew && checkFilter(client)) {
-                    moveClientToClosestZone(client);
-                }
-
                 // check if new window spawns in a zone
                 if (client.zone == undefined || client.zone == -1) matchZone(client);
 
@@ -1096,31 +851,5 @@ PlasmaCore.Dialog {
             }
         }
 
-        // options connection
-        Connections {
-            //! not working at the moment
-            target: Options
-
-            function onConfigChanged() {
-                log("Config changed");
-                mainDialog.loadConfig();
-            }
-        }
-
-        // reusable timer
-        Timer {
-            id: delay
-
-            function setTimeout(callback, timeout) {
-                delay.interval = timeout;
-                delay.repeat = false;
-                delay.triggered.connect(callback);
-                delay.triggered.connect(function release() {
-                    delay.triggered.disconnect(callback);
-                    delay.triggered.disconnect(release);
-                });
-                delay.start();
-            }
-        }
     }
 }

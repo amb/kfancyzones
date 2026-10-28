@@ -7,9 +7,9 @@ const area = {x: 0, y: 0, width: 1920, height: 1080};
 
 test('fresh defaults use Shift-drag, eight zones, and no mini-grid selector', () => {
     const c = createContext();
-    assert.equal(c.config.enableZoneSelector, false);
-    assert.equal(c.config.zoneOverlayShowWhen, 2);
-    assert.equal(c.config.enableMultiZoneSelection, true);
+    assert.equal(c.zoneDragEnabled(), false);
+    c.inputState.modifiers = c.Qt.ShiftModifier;
+    assert.equal(c.zoneDragEnabled(), true);
     const layout = c.config.layouts[0];
     assert.equal(layout.zones.length, 8);
     for (let i = 0; i < 8; i++) {

@@ -18,14 +18,12 @@
         "ServiceTypes": [
             "KWin/Script"
         ],
-        "Version": "0.9.2.11",
+        "Version": "0.9.2.12",
         "Website": "https://github.com/amb/kfancyzones"
     },
     "X-KDE-ConfigModule": "kfancyzonesconfig",
     "X-Plasma-API": "declarativescript",
-    "X-Plasma-APIX": "javascript",
-    "X-Plasma-MainScript": "ui/LiveSettingsOverlay.qml",
-    "X-Plasma-MainScriptX": "code/main.js",
+    "X-Plasma-MainScript": "ui/CleanZonesOverlay.qml",
     "X-Plasma-API-Minimum-Version": "6.6",
     "KPackageStructure": "KWin/Script",
     "X-KDE-PluginKeyword": "kfancyzones"

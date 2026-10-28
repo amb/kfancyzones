@@ -39,13 +39,15 @@ callbacks after script reloads.
 make build
 ```
 
-The build generates the native module in `build/native/qml`, copies it into
-`src/contents/ui/liveinput`, copies the canonical `main.qml` to `LiveSettingsOverlay.qml`,
-and includes the license in `kfancyzones.kwinscript`. The settings controller is
-packaged separately under `contents/config`. `bin/package.py` resolves its
-absolute per-user install path in the packaged metadata; source metadata stays
-free of machine-specific paths. Generated files and local build directories are
-ignored by Git. Test helpers are never packaged.
+Native binaries stay under `build/native`. `bin/package.py` writes the package
+from source files and those build products, with no generated files in `src/`.
+It includes the license and a separate root QML entry URL for live development.
+The settings library filename includes the package version so a new controller
+can load without overwriting a library mapped by System Settings.
+
+The packager resolves the controller's absolute per-user install path in package
+metadata; source metadata stays free of machine-specific paths. Rebuild when
+installing under another account or location. Test helpers are never packaged.
 
 KWin can cache QML across reloads and retain native libraries in memory. A changed
 entry-point URL can bypass a cached root QML file during development. Native
@@ -75,12 +77,12 @@ For the integration test in a separate headless KWin compositor:
 
 ```sh
 cmake -S native -B build/native -DKFANCYZONES_BUILD_INTEGRATION_TESTS=ON
-make native
+make build
 python3 tests/integration.py
 ```
 
 The test creates a private D-Bus session, XDG directories, configuration and two
-virtual outputs. It checks fresh-install defaults without overriding the selector,
+virtual outputs. It loads the built package and checks fresh-install defaults,
 real Shift/Ctrl input, multi-zone bounds, green preview and gray outlines,
 mouse-first acceptance, Shift-first cancellation, tile detachment, Ctrl release,
 Escape, cross-output placement, overlay stacking and cleanup. It checks zero
@@ -97,14 +99,14 @@ option is enabled, is never packaged, and refuses injection without
 ## Settings controller and live updates
 
 `native/settingsplugin.cpp` is a user-local KCModule loaded by System Settings.
-It loads the compact two-tab form and binds `main.xml` through KConfigLoader and
+It constructs the compact two-tab form directly and binds `main.xml` through KConfigLoader and
 KConfigDialogManager. A single preview widget follows the grid controls. The
 Advanced tab has an explicit custom-layout toggle and live red validation errors.
 The controller evaluates the same `configuration.js` functions used by the overlay,
 passing editor contents as data to JSON.parse, not evaluating user-supplied code.
 
-The controller requires `libkf6kcmutils-dev` and Qt UiTools development files
-(`qt6-tools-dev`) to build. Runtime KDE libraries are normally present on Plasma.
+The controller requires `libkf6kcmutils-dev` to build. Runtime KDE libraries are
+normally present on Plasma; Qt UiTools is not needed.
 The build package targets the current user's standard XDG install path; rebuild
 when installing under another account or location.
 
@@ -121,13 +123,6 @@ The regular grid defaults to 4×2 and supports optional 2×2 subdivision. Custom
 mode defaults off and ignores stored JSON. When enabled, valid custom layouts
 replace the grid; invalid or empty custom JSON falls back to plain 4×2 with no
 padding and a diagnostic. Turning custom mode off restores the configured grid.
-
-Regenerate the checked-in form after changing the generator:
-
-```sh
-python3 bin/generate-settings.py
-python3 bin/generate-settings.py --check
-```
 
 With integration-test builds enabled, test the actual controller offscreen. It
 stages its own package and config directory, checks the custom toggle and red
@@ -158,11 +153,9 @@ available for diagnostics.
 - 0.9.2.9: disable the old selector on fresh installs and prepare public docs.
 - 0.9.2.10: compact grid settings, 2×2 subdivision, and Advanced custom layouts/filters.
 - 0.9.2.11: explicit custom mode, live red validation, plain 4×2 fallback, and automatic settings application.
+- 0.9.2.12: prune retired overlay features and tooling, construct the settings form
+  directly, and keep generated build products out of the source tree.
 
 The earlier local rename copied settings from `[Script-kzones-fancyzones]` into
 `[Script-kfancyzones]` on the development desktop. That was a one-time migration;
 `make install` does not perform it. Shortcut IDs retain `KZones:` for compatibility.
-
-[LOCAL_AUDIT.md](LOCAL_AUDIT.md) records the original upstream v0.9.2 audit.
-`node audit/reproduce.cjs` deliberately loads that original source from Git and
-reproduces its defects; it does not audit the current fork.

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
-project(KFancyZonesInput VERSION 0.1 LANGUAGES CXX)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../src/metadata.json" KFANCYZONES_METADATA)
+string(JSON KFANCYZONES_VERSION GET "${KFANCYZONES_METADATA}" KPlugin Version)
+project(KFancyZones VERSION ${KFANCYZONES_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Widgets DBus UiTools)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Widgets DBus)
 find_package(KF6Config REQUIRED)
 find_package(KF6KCMUtils REQUIRED)
 find_package(KWin 6.6 REQUIRED)
@@ -15,14 +17,16 @@ set_target_properties(kfancyzonesliveinputplugin PROPERTIES LIBRARY_OUTPUT_DIREC
 configure_file(qmldir "${CMAKE_BINARY_DIR}/qml/qmldir" COPYONLY)
 
 add_library(kfancyzonesconfig MODULE settingsplugin.cpp)
-target_link_libraries(kfancyzonesconfig PRIVATE Qt6::Widgets Qt6::UiTools Qt6::Qml KF6::KCMUtils KF6::ConfigGui)
-set_target_properties(kfancyzonesconfig PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/config")
+target_link_libraries(kfancyzonesconfig PRIVATE Qt6::Widgets Qt6::Qml KF6::KCMUtils KF6::ConfigGui)
+set_target_properties(kfancyzonesconfig PROPERTIES
+    OUTPUT_NAME "kfancyzonesconfig-${PROJECT_VERSION}"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/config")
 
 option(KFANCYZONES_BUILD_INTEGRATION_TESTS "Build input driver for an isolated virtual KWin test" OFF)
 if(KFANCYZONES_BUILD_INTEGRATION_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Test)
     add_executable(kfancyzones-settings-test ../tests/native/settings.cpp)
-    target_link_libraries(kfancyzones-settings-test PRIVATE Qt6::Widgets Qt6::UiTools Qt6::Test KF6::KCMUtils KF6::ConfigCore)
+    target_link_libraries(kfancyzones-settings-test PRIVATE Qt6::Widgets Qt6::Test KF6::KCMUtils KF6::ConfigCore)
     target_compile_definitions(kfancyzones-settings-test PRIVATE KFANCYZONES_SETTINGS_PLUGIN="$<TARGET_FILE:kfancyzonesconfig>")
     add_dependencies(kfancyzones-settings-test kfancyzonesconfig)
     add_library(kfancyzonestestinputplugin MODULE ../tests/native/testinput.cpp)

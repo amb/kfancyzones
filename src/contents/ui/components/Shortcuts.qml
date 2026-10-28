@@ -48,17 +48,6 @@ Item {
         }
     }
 
-    signal toggleZoneOverlay()
-
-    ShortcutHandler {
-        name: "KZones: Toggle zone overlay"
-        text: "KFancyZones: Toggle zone overlay"
-        sequence: "Ctrl+Alt+C"
-        onActivated: {
-            toggleZoneOverlay();
-        }
-    }
-
     signal switchToNextWindowInCurrentZone()
 
     ShortcutHandler {

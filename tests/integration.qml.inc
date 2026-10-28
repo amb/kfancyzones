@@ -29,7 +29,6 @@
                     integrationKeepAbove = integrationWindow.keepAbove;
                     integrationAssert(inputState.available, "native input backend unavailable");
                     integrationAssert(config.layouts[0].zones.length === (integrationSubdivide ? 32 : 8), "configured grid size is wrong");
-                    integrationAssert(!config.enableZoneSelector, "fresh install enables the mini-grid selector");
                     integrationOriginal = integrationWindow.frameGeometry;
                     Workspace.activeWindow = integrationWindow;
                     testInput.pointer(100,100);
@@ -38,7 +37,7 @@
                     break;
                 case 1:
                     integrationAssert(w.move && moving, "window move not active");
-                    integrationAssert(config.zoneOverlayShowWhen === 2 && !mainDialog.visible, "zones are visible without Shift");
+                    integrationAssert(!mainDialog.visible, "zones are visible without Shift");
                     testInput.pointer(100,100);
                     testInput.key(42,true); // left Shift
                     testInput.key(29,true); // left Ctrl
@@ -171,8 +170,8 @@
                     integrationAssert(testInput.outlineShows === 0, "Shift held before move created native preview");
                     testInput.button(false);
                     testInput.key(42,false);
-                    // With KZones disabled the filter must leave native tiling alone.
-                    config.enableZoneOverlay = false;
+                    // Outside the owned filter, native tiling must remain available.
+                    inputState.suppressNativeTiling = false;
                     testInput.button(true);
                     Workspace.slotWindowMove();
                     break;
@@ -181,10 +180,10 @@
                     testInput.pointer(2700,450);
                     break;
                 case 23:
-                    integrationAssert(testInput.outlineShows > 0, "native Shift preview was suppressed with KZones disabled");
+                    integrationAssert(testInput.outlineShows > 0, "native Shift preview was suppressed with the filter disabled");
                     testInput.key(42,false);
                     testInput.button(false);
-                    config.enableZoneOverlay = true;
+                    inputState.suppressNativeTiling = Qt.binding(() => mainDialog.moving);
                     testInput.writeSetting("subdivideZones", !integrationSubdivide);
                     break;
                 case 24:
