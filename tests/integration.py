@@ -60,8 +60,8 @@ def run():
         shutil.copytree(ROOT / "build/native/testqml", testnative)
         entry = json.loads((package / "metadata.json").read_text())["X-Plasma-MainScript"]
         main = package / "contents" / entry
-        text = main.read_text().replace('import "moveinput" as Native',
-                                       'import "moveinput" as Native\nimport "testnative" as TestNative')
+        text = main.read_text().replace('import "liveinput" as Native',
+                                       'import "liveinput" as Native\nimport "testnative" as TestNative')
         subdivide = os.environ.get("KFANCYZONES_TEST_SUBDIVIDE") == "1"
         fixture = (ROOT / "tests/integration.qml.inc").read_text()
         if subdivide:

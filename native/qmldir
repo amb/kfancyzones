@@ -1,2 +1,2 @@
-module KFancyZones.Input
-plugin kfancyzonesinputplugin
+module KFancyZones.LiveInput
+plugin kfancyzonesliveinputplugin

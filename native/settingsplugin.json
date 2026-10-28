@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Id": "kfancyzonesconfig",
+        "Name": "KFancyZones",
+        "Authors": [{"Name": "amb"}],
+        "License": "GPL-3.0+"
+    }
+}

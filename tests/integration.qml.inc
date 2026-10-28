@@ -184,6 +184,45 @@
                     integrationAssert(testInput.outlineShows > 0, "native Shift preview was suppressed with KZones disabled");
                     testInput.key(42,false);
                     testInput.button(false);
+                    config.enableZoneOverlay = true;
+                    testInput.writeSetting("subdivideZones", !integrationSubdivide);
+                    break;
+                case 24:
+                    integrationAssert(config.layouts[0].zones.length === (integrationSubdivide ? 8 : 32), "saved subdivision change was not applied live");
+                    testInput.writeSetting("layoutsJson", "{broken");
+                    break;
+                case 25:
+                    integrationAssert(config.layouts[0].zones.length === (integrationSubdivide ? 8 : 32) && customLayoutError === "", "disabled custom JSON overrode the grid");
+                    testInput.writeSetting("useCustomLayout", true);
+                    break;
+                case 26:
+                    integrationAssert(config.layouts[0].zones.length === 8 && config.layouts[0].padding === 0, "invalid enabled custom JSON did not use plain 4x2");
+                    integrationAssert(customLayoutError.length > 0, "invalid custom JSON has no diagnostic");
+                    testInput.writeSetting("layoutsJson", '[{"name":"Custom","zones":[{"x":0,"y":0,"width":100,"height":100}]}]');
+                    break;
+                case 27:
+                    integrationAssert(config.layouts[0].zones.length === 1 && customLayoutError === "", "valid custom JSON did not apply live");
+                    testInput.writeSetting("useCustomLayout", false);
+                    break;
+                case 28:
+                    integrationAssert(config.layouts[0].zones.length === (integrationSubdivide ? 8 : 32), "disabling custom mode did not restore the grid");
+                    testInput.key(42,true);
+                    testInput.button(true);
+                    Workspace.slotWindowMove();
+                    testInput.writeSetting("gridColumns", 2);
+                    break;
+                case 29:
+                    integrationAssert(moving && configurationPending, "settings change during a drag was not deferred");
+                    integrationAssert(config.layouts[0].zones.length === (integrationSubdivide ? 8 : 32), "settings changed the grid in the middle of a drag");
+                    testInput.pointer(2200,200);
+                    testInput.button(false);
+                    testInput.key(42,false);
+                    break;
+                case 30:
+                    integrationAssert(!configurationPending && config.layouts[0].zones.length === (integrationSubdivide ? 4 : 16), "deferred settings were not applied after the drag");
+                    testInput.writeSetting("gridColumns", 4);
+                    testInput.writeSetting("subdivideZones", integrationSubdivide);
+                    testInput.writeSetting("layoutsJson", "");
                     console.log("KFANCYZONES_INTEGRATION: PASS");
                     stop();
                     break;

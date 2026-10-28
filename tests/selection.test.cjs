@@ -93,7 +93,7 @@ test('invalid zones and malformed dimensions cannot produce a snap rectangle', (
     assert.equal(s.combinedGeometry(layout, area, [0]), null);
 });
 
-test('an existing saved custom layout takes precedence over the new default', () => {
+test('an enabled custom layout takes precedence over the grid', () => {
     const custom = [{name: 'My layout', zones: [{x:0,y:0,width:100,height:100}]}];
-    assert.deepEqual(plain(createContext({layoutsJson: JSON.stringify(custom)}).config.layouts), custom);
+    assert.deepEqual(plain(createContext({useCustomLayout: true, layoutsJson: JSON.stringify(custom)}).config.layouts), custom);
 });

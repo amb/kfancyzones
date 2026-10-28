@@ -21,9 +21,10 @@ build: $(PKGFILE)
 native:
 	@cmake -S native -B $(NATIVE_BUILD_DIR)
 	@cmake --build $(NATIVE_BUILD_DIR) --parallel
-	@mkdir -p $(SRC_DIR)/contents/ui/moveinput
-	@cp $(NATIVE_BUILD_DIR)/qml/qmldir $(NATIVE_BUILD_DIR)/qml/libkfancyzonesinputplugin.so $(SRC_DIR)/contents/ui/moveinput/
-	@cp $(SRC_DIR)/contents/ui/main.qml $(SRC_DIR)/contents/ui/CompactSettingsOverlay.qml
+	@mkdir -p $(SRC_DIR)/contents/ui/liveinput
+	@cp $(NATIVE_BUILD_DIR)/qml/qmldir $(NATIVE_BUILD_DIR)/qml/libkfancyzonesliveinputplugin.so $(SRC_DIR)/contents/ui/liveinput/
+	@cp $(SRC_DIR)/contents/ui/main.qml $(SRC_DIR)/contents/ui/LiveSettingsOverlay.qml
+	@cp $(NATIVE_BUILD_DIR)/config/libkfancyzonesconfig.so $(SRC_DIR)/contents/config/
 	@cp LICENSE.md $(SRC_DIR)/LICENSE.md
 
 check:
@@ -33,7 +34,7 @@ check:
 $(PKGFILE): native $(shell find $(SRC_DIR) -type f)
 	@echo "Packaging $(SRC_DIR) into $(PKGFILE)..."
 	@rm -f $(PKGFILE)
-	@zip -rq $(PKGFILE) $(SRC_DIR) -x '*/ui/native/*' '*/libkzones*.so' '*/ui/FilledPreviewOverlay.qml' '*/ui/RaisedWindowOverlay.qml' '*/ui/NativePreviewFreeOverlay.qml' '*/ui/KFancyZones.qml'
+	@python3 bin/package.py
 
 install: build
 	@echo "Installing $(PKGFILE)..."

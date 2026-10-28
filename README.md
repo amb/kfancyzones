@@ -3,7 +3,7 @@
 FancyZones-style window snapping for KDE Plasma, forked from
 [KZones](https://github.com/gerritdevriese/kzones).
 
-**Experimental MVP · version 0.9.2.10 · tested on KWin 6.6.6, Wayland,
+**Experimental MVP · version 0.9.2.11 · tested on KWin 6.6.6, Wayland,
 Kubuntu 26.04.** Other KWin versions and X11 have not been verified.
 The native helper builds against KWin's development API: build it on the target
 system and rebuild after KWin upgrades. This is a source-build project.
@@ -30,7 +30,7 @@ custom tiles. KWin's competing Shift-drag preview is suppressed during selection
 Install the development dependencies yourself. On Kubuntu 26.04:
 
 ```sh
-sudo apt-get install --no-install-recommends kwin-dev extra-cmake-modules qt6-base-dev qt6-declarative-dev cmake g++ make zip kpackagetool6 qdbus-qt6
+sudo apt-get install --no-install-recommends kwin-dev extra-cmake-modules qt6-base-dev qt6-declarative-dev cmake g++ make zip kpackagetool6 qdbus-qt6 python3 qt6-tools-dev libkf6kcmutils-dev
 ```
 
 From this repository's root:
@@ -41,17 +41,22 @@ make install
 ```
 
 `make build` creates `kfancyzones.kwinscript`; `make install` installs or updates
-it for the current user. Plain `make` also builds the package.
+it for the current user. Plain `make` also builds the package. Build and install
+as the same user: the package records the settings controller’s per-user install
+path under the standard XDG data directory.
 
 Open **System Settings → Window Management → KWin Scripts**, disable the
 original **KZones** and any older **KZones FancyZones** fork, and enable
 **KFancyZones**. The plugin ID is `kfancyzones`. Restart System Settings if its
 script list still shows the old name.
 
-On updates, disable the script and apply before installing, then enable it again.
-KWin can cache QML and native modules across reloads. If an updated version does
-not appear, log out and back in. Do not replace a native library that is still
-loaded by the compositor.
+Settings take effect when you click **Apply**. Changes saved during a drag wait
+until that drag ends. No script toggle is needed for ordinary settings changes.
+
+After installing a new code version, KWin or System Settings may retain cached
+QML or plugins. Restart System Settings to refresh the configuration dialog;
+log out and back in if KWin still runs the older code. Never overwrite a loaded
+native library in place during development.
 
 To uninstall:
 
@@ -67,13 +72,17 @@ Use the settings button next to **KFancyZones** in KWin Scripts. The compact
 4×2 becomes **8×4**. Subdivision is off by default. Shift/Ctrl selection and
 release-order behavior stay the same at either grid size.
 
-The separate **Advanced** tab contains optional custom layout JSON and application filters.
-Custom layouts override the grid controls and preserve their own padding;
+The separate **Advanced** tab contains **Use custom layout**, a JSON editor, and
+application filters. Custom layout is **off by default**; saved JSON is ignored
+while it is off, and the grid controls apply, including subdivision. Turning it
+on uses the custom JSON instead. Custom layouts preserve their own padding.
 [examples/simple.json](examples/simple.json) and
-[examples/advanced.json](examples/advanced.json) show the format. Leave the JSON
-empty to use the regular grid. The old saved 4×2 default is recognized as a grid,
-so it does not block the new controls. Other saved custom layouts remain active.
-Invalid custom JSON falls back to the selected grid and records a diagnostic.
+[examples/advanced.json](examples/advanced.json) show the format.
+
+Invalid enabled custom JSON shows a **red warning while editing**. Applying it
+uses the plain default **4×2 grid with zero gap**, regardless of the regular grid
+settings. Empty JSON is also invalid when custom layout is enabled. Turning
+custom layout off restores your configured grid, including an 8×4 subdivision.
 
 Activation is always Shift-drag, Ctrl always combines zones, and restore-on-drag
 and independent resizing are standard behavior. The old selector, edge snapping,
@@ -101,7 +110,8 @@ make check
 
 The unit tests require Python 3 and Node.js 24 or newer. The integration suite checks actual
 Shift/Ctrl input, acceptance and cancellation order, multiple outputs, independent
-window geometry, overlay stacking, and suppression of the native preview.
+window geometry, overlay stacking, suppression of the native preview, live settings
+reload and custom-layout fallback.
 
 ## Credits and license
 

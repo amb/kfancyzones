@@ -5,9 +5,9 @@ import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.core as PlasmaCore
 
 import "components" as Components
-import "moveinput" as Native
+import "liveinput" as Native
 import "../code/selection.js" as Selection
-import "../code/layouts.js" as Layouts
+import "../code/configuration.js" as Layouts
 
 PlasmaCore.Dialog {
 
@@ -45,6 +45,9 @@ PlasmaCore.Dialog {
     property var config: ({})
     property bool showZoneOverlay: config.zoneOverlayShowWhen == 0
     property var errors: []
+    property bool configurationReady: false
+    property bool configurationPending: false
+    property string customLayoutError: ""
 
     title: "KFancyZones Overlay"
     location: PlasmaCore.Types.Desktop
@@ -60,10 +63,13 @@ PlasmaCore.Dialog {
 
     function loadConfig() {
 
-        const loaded = Layouts.load(KWin.readConfig("layoutsJson", ""),
-            KWin.readConfig("gridColumns", 4), KWin.readConfig("gridRows", 2),
-            KWin.readConfig("gridGap", 0), KWin.readConfig("subdivideZones", false));
-        if (loaded.error) errors = errors.concat(loaded.error);
+        const settings = inputState.configuration || {};
+        const read = (key, fallback) => settings[key] !== undefined ? settings[key] : fallback;
+        const loaded = Layouts.load(read("layoutsJson", ""),
+            read("gridColumns", 4), read("gridRows", 2),
+            read("gridGap", 0), read("subdivideZones", false), read("useCustomLayout", false));
+        customLayoutError = loaded.error;
+        errors = loaded.error ? [loaded.error] : [];
         const layouts = loaded.layouts;
 
         // load values from configuration
@@ -99,18 +105,40 @@ PlasmaCore.Dialog {
             // layouts
             layouts: layouts,
             // filter mode
-            filterMode: KWin.readConfig("filterMode", 1),
+            filterMode: read("filterMode", 1),
             // filter list
-            filterList: KWin.readConfig("filterList", ""),
+            filterList: read("filterList", ""),
             // polling rate in milliseconds
             pollingRate: 100,
             // enable debug logging
-            enableDebugLogging: KWin.readConfig("enableDebugLogging", false),
+            enableDebugLogging: read("enableDebugLogging", false),
             // enable debug overlay
             enableDebugOverlay: false
         };
 
         log("Config loaded: " + JSON.stringify(config));
+    }
+
+    function applyConfiguration() {
+        if (!configurationReady) return;
+        if (moving) {
+            configurationPending = true;
+            return;
+        }
+        configurationPending = false;
+        currentLayout = 0;
+        screenLayouts = {};
+        resetZoneSelection();
+        loadConfig();
+        // Keep geometry unchanged; discard associations with the old layout.
+        for (const client of Workspace.stackingOrder) {
+            if (client.zone !== undefined) {
+                client.zone = -1;
+                client.layout = -1;
+                client.zones = [];
+            }
+        }
+        console.info("KFancyZones settings applied: zones=" + config.layouts[0].zones.length);
     }
 
     function log(message) {
@@ -599,6 +627,7 @@ PlasmaCore.Dialog {
         id: inputState
         window: mainDialog.draggedWindow
         suppressNativeTiling: mainDialog.moving && config.enableZoneOverlay
+        onConfigurationChanged: mainDialog.applyConfiguration()
         onModifiersChanged: {
             // Clear selection synchronously on Shift-up; refresh once more after
             // the input event has finished updating the window position.
@@ -707,7 +736,8 @@ PlasmaCore.Dialog {
         // refresh client area
         refreshClientArea();
         mainDialog.loadConfig();
-        console.info("KFancyZones 0.9.2.10 loaded: native=" + inputState.available
+        configurationReady = true;
+        console.info("KFancyZones 0.9.2.11 loaded: native=" + inputState.available
             + ", mode=" + config.zoneOverlayShowWhen + ", zones=" + config.layouts[0].zones.length);
 
         // match all clients to zones and connect signals
@@ -822,6 +852,7 @@ PlasmaCore.Dialog {
                     dragOriginalGeometry = null;
                     dragOriginalTile = null;
                     draggedWindow = null;
+                    if (configurationPending) Qt.callLater(applyConfiguration);
                 }
 
                 // fix from https://github.com/gerritdevriese/kzones/pull/25

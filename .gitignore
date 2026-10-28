@@ -17,3 +17,7 @@ __pycache__/
 *.pyc
 
 /src/contents/ui/CompactSettingsOverlay.qml
+
+/src/contents/ui/liveinput/
+/src/contents/config/libkfancyzonesconfig.so
+/src/contents/ui/LiveSettingsOverlay.qml

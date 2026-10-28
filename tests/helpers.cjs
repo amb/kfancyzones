@@ -5,7 +5,7 @@ const root = path.join(__dirname, '..');
 const mainSource = fs.readFileSync(path.join(root, 'src/contents/ui/main.qml'), 'utf8');
 const selection = vm.createContext({});
 const layouts = vm.createContext({});
-vm.runInContext(fs.readFileSync(path.join(root, 'src/contents/code/layouts.js'), 'utf8'), layouts);
+vm.runInContext(fs.readFileSync(path.join(root, 'src/contents/code/configuration.js'), 'utf8'), layouts);
 vm.runInContext(fs.readFileSync(path.join(root, 'src/contents/code/selection.js'), 'utf8'), selection);
 
 function createContext(overrides = {}) {
@@ -20,7 +20,7 @@ function createContext(overrides = {}) {
         zoneSelection: {context: '', zones: [], hovered: -1, extending: false},
         zoneSelector: {expanded: false},
         mainDialog: {visible: false}, shown: true,
-        inputState: {available: true, modifiers: 0},
+        inputState: {available: true, modifiers: 0, configuration: overrides},
         Workspace: {currentDesktop: {id: 'desktop-1'}, currentActivity: 'activity-1',
             cursorPos: {x: 100, y: 100}, stackingOrder: [], hideOutline() {},
             constrain() {}, unconstrain() {}, raiseWindow() {}},

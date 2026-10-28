@@ -35,16 +35,18 @@ test('a saved legacy default grid does not override new grid controls', () => {
 test('custom JSON keeps layouts, zone metadata and custom spacing intact', () => {
     const custom = [{name: 'Custom', padding: 8, zones: [
         {x: 0, y: 0, width: 100, height: 100, applications: ['example']}]}];
-    const c = createContext({layoutsJson: JSON.stringify(custom), subdivideZones: true});
+    const c = createContext({useCustomLayout: true, layoutsJson: JSON.stringify(custom), subdivideZones: true});
     assert.deepEqual(plain(c.config.layouts), custom);
 });
 
-test('invalid custom layouts fall back safely to the selected grid', () => {
+test('invalid enabled custom layouts fall back to plain 4x2, regardless of grid settings', () => {
     for (const json of ['{', 'null', '[]', '[{}]', '[{"zones":[]}]',
         '[{"zones":[{"x":0,"y":0,"width":101,"height":100}]}]']) {
-        const c = createContext({layoutsJson: json, gridColumns: 2, gridRows: 1});
-        assert.equal(c.config.layouts[0].zones.length, 2);
+        const c = createContext({useCustomLayout: true, layoutsJson: json, gridColumns: 2, gridRows: 1, gridGap: 12, subdivideZones: true});
+        assert.equal(c.config.layouts[0].zones.length, 8);
+        assert.equal(c.config.layouts[0].padding, 0);
         assert.equal(c.errors.length, 1);
+        assert.match(c.customLayoutError, /default 4×2/);
     }
 });
 
@@ -67,4 +69,16 @@ test('retired behavior settings cannot change the fixed Shift/Ctrl workflow', ()
     assert.equal(c.config.fadeWindowsWhileMoving, false);
     assert.equal(c.config.autoSnapAllNew, false);
     assert.equal(c.config.pollingRate, 100);
+});
+
+test('disabled custom layout ignores stored invalid JSON and uses the subdivided grid', () => {
+    const c = createContext({useCustomLayout: false, layoutsJson: '{invalid', subdivideZones: true});
+    assert.equal(c.config.layouts[0].zones.length, 32);
+    assert.equal(c.customLayoutError, '');
+});
+
+test('enabled empty JSON is invalid and uses plain 4x2', () => {
+    const c = createContext({useCustomLayout: true, layoutsJson: '', subdivideZones: true});
+    assert.equal(c.config.layouts[0].zones.length, 8);
+    assert.match(c.customLayoutError, /default 4×2/);
 });

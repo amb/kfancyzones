@@ -13,7 +13,7 @@ Node.js 24 or newer is required for unit tests. Python 3, Qt Quick Test tools,
 
 ## Native helper and overlay
 
-`native/inputplugin.cpp` registers `KFancyZones.Input`. It observes raw modifier
+`native/inputplugin.cpp` registers `KFancyZones.LiveInput`. It observes raw modifier
 state and Escape, and installs an input filter immediately before KWin's move
 filter. The filter handles only the window owned by this script while Shift is
 held during an interactive move. It forwards KWin's normal move update with
@@ -40,9 +40,12 @@ make build
 ```
 
 The build generates the native module in `build/native/qml`, copies it into
-`src/contents/ui/moveinput`, copies the canonical `main.qml` to `CompactSettingsOverlay.qml`,
-and includes the license in `kfancyzones.kwinscript`. Generated files and local
-build directories are ignored by Git. Only the production helper is packaged.
+`src/contents/ui/liveinput`, copies the canonical `main.qml` to `LiveSettingsOverlay.qml`,
+and includes the license in `kfancyzones.kwinscript`. The settings controller is
+packaged separately under `contents/config`. `bin/package.py` resolves its
+absolute per-user install path in the packaged metadata; source metadata stays
+free of machine-specific paths. Generated files and local build directories are
+ignored by Git. Test helpers are never packaged.
 
 KWin can cache QML across reloads and retain native libraries in memory. A changed
 entry-point URL can bypass a cached root QML file during development. Native
@@ -91,15 +94,33 @@ The injection driver under `tests/native` is built only when the integration
 option is enabled, is never packaged, and refuses injection without
 `KFANCYZONES_INTEGRATION_TEST=1`.
 
-## Compact settings
+## Settings controller and live updates
 
-The generic KWin settings loader uses `config.ui` and `main.xml`; it does not
-execute code behind the form. `bin/generate-settings.py` generates a form using
-only standard Qt widgets and signal/slot connections. Its stacked grid previews
-follow the column, row, and subdivision controls without a second native plugin.
-The dialog starts on the Layout tab, with custom layouts and application filters
-on a separate Advanced tab; the shortcut link opens KDE's
-Shortcuts page. Custom JSON overrides the regular grid and its subdivision.
+`native/settingsplugin.cpp` is a user-local KCModule loaded by System Settings.
+It loads the compact two-tab form and binds `main.xml` through KConfigLoader and
+KConfigDialogManager. A single preview widget follows the grid controls. The
+Advanced tab has an explicit custom-layout toggle and live red validation errors.
+The controller evaluates the same `configuration.js` functions used by the overlay,
+passing editor contents as data to JSON.parse, not evaluating user-supplied code.
+
+The controller requires `libkf6kcmutils-dev` and Qt UiTools development files
+(`qt6-tools-dev`) to build. Runtime KDE libraries are normally present on Plasma.
+The build package targets the current user's standard XDG install path; rebuild
+when installing under another account or location.
+
+The native input helper also reads the script's configuration through its own
+KConfig object and watches the config file and its parent directory. A short
+single-shot timer coalesces writes and restores the watch after atomic file
+replacement. Only changes to relevant settings emit `configurationChanged`.
+QML applies them immediately between drags and defers them during a drag.
+This avoids KWin's cached script configuration and the generic settings loader's
+missing script-reload notification. Existing window geometry is left unchanged;
+old layout associations are discarded when settings change.
+
+The regular grid defaults to 4×2 and supports optional 2×2 subdivision. Custom
+mode defaults off and ignores stored JSON. When enabled, valid custom layouts
+replace the grid; invalid or empty custom JSON falls back to plain 4×2 with no
+padding and a diagnostic. Turning custom mode off restores the configured grid.
 
 Regenerate the checked-in form after changing the generator:
 
@@ -108,22 +129,24 @@ python3 bin/generate-settings.py
 python3 bin/generate-settings.py --check
 ```
 
-With integration-test builds enabled, the actual Qt form can be tested offscreen
-(`Qt6::UiTools` development files, supplied by `qt6-tools-dev`, are required):
+With integration-test builds enabled, test the actual controller offscreen. It
+stages its own package and config directory, checks the custom toggle and red
+warnings, and verifies Apply/defaults/reload without touching desktop settings:
 
 ```sh
 QT_QPA_PLATFORM=offscreen build/native/kfancyzones-settings-test
 ```
 
-Run the same KWin gestures against the subdivided layout:
+Run the KWin gestures against the subdivided layout:
 
 ```sh
 KFANCYZONES_TEST_SUBDIVIDE=1 python3 tests/integration.py
 ```
 
-`src/contents/code/layouts.js` generates the row-major grid, recognizes the legacy
-saved default, and validates custom JSON. Retired behavior keys are ignored;
-manual `enableDebugLogging` remains available for diagnostics.
+The integration test also edits its private configuration while KWin is running,
+checking grid changes, custom mode, invalid fallback and deferred updates during
+a drag. Retired behavior keys are ignored; manual `enableDebugLogging` remains
+available for diagnostics.
 
 ## History
 
@@ -134,6 +157,7 @@ manual `enableDebugLogging` remains available for diagnostics.
 - 0.9.2.8: rename the fork to KFancyZones.
 - 0.9.2.9: disable the old selector on fresh installs and prepare public docs.
 - 0.9.2.10: compact grid settings, 2×2 subdivision, and Advanced custom layouts/filters.
+- 0.9.2.11: explicit custom mode, live red validation, plain 4×2 fallback, and automatic settings application.
 
 The earlier local rename copied settings from `[Script-kzones-fancyzones]` into
 `[Script-kfancyzones]` on the development desktop. That was a one-time migration;

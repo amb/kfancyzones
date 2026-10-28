@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the standard Qt form; no custom settings plugin is required.
-
-KWin's generic loader does not run code behind a .ui form. Stacked previews
-and ordinary signal/slot connections keep the grid preview reactive anyway.
-"""
+"""Generate the Qt form used by the settings controller in native/settingsplugin.cpp."""
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as E
@@ -38,11 +34,6 @@ def label(parent, name, text):
 def spin(parent, name, default, maximum, minimum=1):
     return widget(parent, 'QSpinBox', 'kcfg_'+name, minimum=minimum, maximum=maximum, value=default)
 
-def connect(sender, signal, receiver, slot):
-    node = E.SubElement(connections, 'connection')
-    for key, value in [('sender', sender), ('signal', signal), ('receiver', receiver), ('slot', slot)]:
-        E.SubElement(node, key).text = value
-
 ui = E.Element('ui', version='4.0')
 E.SubElement(ui, 'class').text = 'KFancyZonesSettings'
 root = E.SubElement(ui, 'widget', {'class':'QWidget', 'name':'KFancyZonesSettings'})
@@ -62,59 +53,33 @@ for name, title, default, maximum in [('gridColumns','Columns',4,8),('gridRows',
     if name=='gridGap': prop(control,'suffix','string',' px')
 subdivide = widget(outer,'QCheckBox','kcfg_subdivideZones',text='Subdivide each zone into 2×2')
 prop(subdivide,'toolTip','string','Doubles the columns and rows. The default 4×2 grid becomes 8×4.')
-previews = widget(outer,'QStackedWidget','subdivisionPreview',currentIndex=0)
-connections = E.Element('connections')
-connect('kcfg_subdivideZones','stateChanged(int)','subdivisionPreview','setCurrentIndex(int)')
-for state in range(3):
-    if state == 1:
-        widget(previews,'QWidget','unusedPartiallyCheckedPreview')
-        continue
-    factor = 1 if state == 0 else 2
-    page = widget(previews,'QWidget','previewMode'+str(factor))
-    page_layout = layout(page,'previewModeLayout'+str(factor))
-    column_stack = widget(page_layout,'QStackedWidget','columnsPreview'+str(factor),currentIndex=4)
-    connect('kcfg_gridColumns','valueChanged(int)','columnsPreview'+str(factor),'setCurrentIndex(int)')
-    widget(column_stack,'QWidget','unusedZeroColumns'+str(factor))
-    for columns in range(1,9):
-        col_page = widget(column_stack,'QWidget',f'columns_{factor}_{columns}')
-        col_layout = layout(col_page,f'columnsLayout_{factor}_{columns}')
-        row_name=f'rowsPreview_{factor}_{columns}'
-        row_stack=widget(col_layout,'QStackedWidget',row_name,currentIndex=2)
-        connect('kcfg_gridRows','valueChanged(int)',row_name,'setCurrentIndex(int)')
-        widget(row_stack,'QWidget',f'unusedZeroRows_{factor}_{columns}')
-        for rows in range(1,5):
-            c,r=columns*factor,rows*factor
-            name=f'preview_{factor}_{columns}_{rows}'
-            row_page=widget(row_stack,'QWidget',name)
-            row_layout=layout(row_page,name+'Layout')
-            prop(row_layout,'spacing','number',6)
-            caption=label(row_layout,name+'Caption',f'{c} × {r} · {c*r} zones')
-            prop(caption,'alignment','set','Qt::AlignCenter')
-            table=widget(row_layout,'QTableWidget',name+'Grid',rowCount=r,columnCount=c)
-            size(table,'minimumSize',400,144);size(table,'maximumSize',400,144)
-            prop(table,'focusPolicy','enum','Qt::NoFocus')
-            prop(table,'editTriggers','set','QAbstractItemView::NoEditTriggers')
-            prop(table,'selectionMode','enum','QAbstractItemView::NoSelection')
-            prop(table,'horizontalScrollBarPolicy','enum','Qt::ScrollBarAlwaysOff')
-            prop(table,'verticalScrollBarPolicy','enum','Qt::ScrollBarAlwaysOff')
-            for key,value in [('horizontalHeaderVisible',False),('verticalHeaderVisible',False),
-                              ('horizontalHeaderMinimumSectionSize',8),('verticalHeaderMinimumSectionSize',8),
-                              ('horizontalHeaderDefaultSectionSize',398//c),('verticalHeaderDefaultSectionSize',142//r),
-                              ('horizontalHeaderStretchLastSection',True),('verticalHeaderStretchLastSection',True)]:
-                attr=E.SubElement(table,'attribute',name=key)
-                E.SubElement(attr,'bool' if isinstance(value,bool) else 'number').text=str(value).lower()
-            row_layout[-1].set('alignment','Qt::AlignHCenter')
-help_text=label(outer,'gestureHelp','<b>Shift + drag</b> selects a zone. Add <b>Ctrl</b> to combine zones.<br/>Release the <b>mouse first</b> to accept, or release <b>Shift first</b> to cancel.')
+mode_hint = label(outer,'layoutModeHint','Custom layout is enabled on the Advanced tab. Turn it off to use these grid settings.')
+prop(mode_hint,'visible','bool',False)
+caption=label(outer,'previewCaption','4 × 2 · 8 zones')
+prop(caption,'alignment','set','Qt::AlignCenter')
+table=widget(outer,'QTableWidget','layoutPreview',rowCount=2,columnCount=4)
+size(table,'minimumSize',400,144);size(table,'maximumSize',400,144)
+prop(table,'focusPolicy','enum','Qt::NoFocus')
+prop(table,'editTriggers','set','QAbstractItemView::NoEditTriggers')
+prop(table,'selectionMode','enum','QAbstractItemView::NoSelection')
+prop(table,'horizontalScrollBarPolicy','enum','Qt::ScrollBarAlwaysOff')
+prop(table,'verticalScrollBarPolicy','enum','Qt::ScrollBarAlwaysOff')
+outer[-1].set('alignment','Qt::AlignHCenter')
+label(outer,'gestureHelp','<b>Shift + drag</b> selects a zone. Add <b>Ctrl</b> to combine zones.<br/>Release the <b>mouse first</b> to accept, or release <b>Shift first</b> to cancel.')
 shortcuts=label(outer,'shortcutsLink','<a href="systemsettings://kcm_keys">Configure keyboard shortcuts…</a>')
 prop(shortcuts,'openExternalLinks','bool',True)
 label(outer,'shortcutsHint','Search for KFancyZones in the Shortcuts page.')
 advanced_body=widget(tabs,'QWidget','advancedOptions')
 E.SubElement(E.SubElement(advanced_body,'attribute',name='title'),'string').text='Advanced'
 advanced_layout=layout(advanced_body,'advancedLayout')
-label(advanced_layout,'customLayoutsLabel','<b>Custom layouts</b>')
-label(advanced_layout,'customLayoutsHelp','Custom JSON overrides the grid on the Layout tab. Leave empty to use the grid.')
-custom=widget(advanced_layout,'QPlainTextEdit','kcfg_layoutsJson',placeholderText='Optional layout JSON')
-prop(custom,'maximumHeight','number',110)
+widget(advanced_layout,'QCheckBox','kcfg_useCustomLayout',text='Use custom layout')
+label(advanced_layout,'customLayoutsHelp','Enable to use custom JSON instead of the grid controls. Invalid JSON uses the default 4×2 grid.')
+custom=widget(advanced_layout,'QPlainTextEdit','kcfg_layoutsJson',placeholderText='Layout JSON',enabled=False)
+prop(custom,'minimumHeight','number',140)
+warning=label(advanced_layout,'customLayoutError','')
+prop(warning,'visible','bool',False)
+prop(warning,'textFormat','enum','Qt::PlainText')
+prop(warning,'styleSheet','string','color: #da4453;')
 label(advanced_layout,'applicationsLabel','<b>Applications</b>')
 combo=widget(advanced_layout,'QComboBox','kcfg_filterMode',currentIndex=1)
 for text in ['Only include these applications','Exclude these applications']:
@@ -124,8 +89,8 @@ prop(apps,'maximumHeight','number',72)
 for parent,name in [(outer,'layoutSpacer'),(advanced_layout,'advancedSpacer')]:
     spacer=E.SubElement(E.SubElement(parent,'item'),'spacer',name=name)
     prop(spacer,'orientation','enum','Qt::Vertical');size(spacer,'sizeHint',20,0)
-label(shell,'applyHelp','After applying changes, turn KFancyZones off and on again in KWin Scripts.')
-E.SubElement(ui,'resources');ui.append(connections)
+label(shell,'applyHelp','Changes take effect when you click Apply.')
+E.SubElement(ui,'resources');E.SubElement(ui,'connections')
 E.indent(ui,space=' ')
 result='<?xml version="1.0" encoding="UTF-8"?>\n<!-- Generated by bin/generate-settings.py; edit the generator. -->\n'+E.tostring(ui,encoding='unicode')+'\n'
 path=ROOT/'src/contents/ui/config.ui'

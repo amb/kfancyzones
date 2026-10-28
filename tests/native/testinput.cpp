@@ -8,6 +8,8 @@
 #include <pointer_input.h>
 #include <outline.h>
 #include <workspace.h>
+#include <KConfig>
+#include <KConfigGroup>
 
 class TestInput : public QObject
 {
@@ -32,6 +34,15 @@ public:
         if (!enabled()) return;
         KWin::input()->keyboard()->processKey(code,
             down ? KWin::KeyboardKeyState::Pressed : KWin::KeyboardKeyState::Released, time());
+    }
+
+    Q_INVOKABLE void writeSetting(const QString &key, const QVariant &value)
+    {
+        if (!enabled()) return;
+        KConfig config(QStringLiteral("kwinrc"), KConfig::SimpleConfig);
+        KConfigGroup group(&config, QStringLiteral("Script-kfancyzones"));
+        group.writeEntry(key, value);
+        config.sync();
     }
 
     Q_INVOKABLE void pointer(int x, int y)
