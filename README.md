@@ -117,7 +117,7 @@ reload and custom-layout fallback.
 
 KFancyZones is maintained by [amb](https://github.com/amb) and is based
 on KZones v0.9.2 by [Gerrit De Vriese](https://github.com/gerritdevriese) and its
-contributors. The inherited Git history and original assets are retained.
+contributors. The inherited Git history is retained.
 The interaction is inspired by PowerToys FancyZones.
 
 The project retains the GNU GPL v3 license; see [LICENSE.md](LICENSE.md).
